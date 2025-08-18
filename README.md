@@ -109,3 +109,4 @@ The application includes secure API routes for admin operations:
 ## License
 
 This project is private and proprietary.
+# easy-dollars
