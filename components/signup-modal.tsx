@@ -52,6 +52,7 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
     setLoading(true)
     setError("")
 
+    // ✅ validation checks
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
       setLoading(false)
@@ -72,6 +73,8 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
 
     try {
       console.log("Creating account for:", formData.email)
+
+      // ✅ pass data to useAuth signUp hook
       const result = await signUp(
         formData.email,
         formData.password,
@@ -81,15 +84,20 @@ export function SignupModal({ open, onOpenChange }: SignupModalProps) {
         formData.referralCode,
       )
 
-      if (result.error) {
-        setError(result.error)
+      // ✅ handle errors from hook
+      if (result?.error) {
+        if (result.error.includes("duplicate key")) {
+          setError("This email or phone is already registered. Please log in instead.")
+        } else {
+          setError(result.error)
+        }
       } else {
         alert("Account created successfully! Please check your email to verify your account.")
         onOpenChange(false)
       }
     } catch (err) {
-      console.error("Signup error occurred")
-      setError("An error occurred. Please try again.")
+      console.error("Signup error occurred", err)
+      setError("An unexpected error occurred. Please try again later.")
     } finally {
       setLoading(false)
     }

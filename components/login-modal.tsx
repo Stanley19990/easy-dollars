@@ -1,15 +1,15 @@
 "use client"
 
 import type React from "react"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { Loader2 } from "lucide-react"
-import { useRouter } from "next/navigation"
 
 interface LoginModalProps {
   open: boolean
@@ -35,15 +35,16 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
       console.log("Logging in user:", formData.email)
       const result = await signIn(formData.email, formData.password)
 
-      if (result.error) {
-        setError(result.error)
+      if (!result.user) {
+        // If the user object is null, check for error message
+        setError(result.error || "Login failed. Please try again.")
       } else {
         onOpenChange(false)
         router.push("/dashboard")
       }
-    } catch (err) {
-      console.error("Login error occurred")
-      setError("An error occurred. Please try again.")
+    } catch (err: any) {
+      console.error("Login error occurred:", err)
+      setError(err?.message || "An error occurred. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -107,7 +108,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
               type="button"
               onClick={() => {
                 onOpenChange(false)
-                // You can trigger signup modal here if needed
+                // Trigger signup modal here if needed
               }}
               className="text-cyan-400 hover:text-cyan-300 underline"
             >

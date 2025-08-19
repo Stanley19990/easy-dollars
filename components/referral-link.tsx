@@ -14,7 +14,7 @@ export function ReferralLink() {
 
   if (!user) return null
 
-  const referralLink = `https://easydollars.com/signup?ref=${user.referralCode}`
+  const referralLink = `https://easydollars.com/signup?ref=${user.referral_code}`
 
   const copyToClipboard = async () => {
     try {
@@ -28,13 +28,13 @@ export function ReferralLink() {
   }
 
   const shareViaWhatsApp = () => {
-    const message = `Join me on Easy Dollars and start earning money by watching ads! Use my referral code: ${user.referralCode}\n\n${referralLink}`
+    const message = `Join me on Easy Dollars and start earning money by watching ads! Use my referral code: ${user.referral_code}\n\n${referralLink}`
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank")
   }
 
   const shareViaEmail = () => {
     const subject = "Join Easy Dollars and Start Earning!"
-    const body = `Hi!\n\nI've been using Easy Dollars to earn money by watching ads and it's amazing! You can earn up to 10x your investment in 30 days.\n\nUse my referral code: ${user.referralCode}\nSign up here: ${referralLink}\n\nLet's start earning together!`
+    const body = `Hi!\n\nI've been using Easy Dollars to earn money by watching ads and it's amazing! You can earn up to 10x your investment in 30 days.\n\nUse my referral code: ${user.referral_code}\nSign up here: ${referralLink}\n\nLet's start earning together!`
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
   }
 
@@ -50,7 +50,7 @@ export function ReferralLink() {
         <div className="space-y-4">
           <div className="bg-slate-800/50 rounded-lg p-4">
             <div className="text-sm text-slate-400 mb-2">Your Referral Code</div>
-            <div className="text-2xl font-bold text-cyan-400 text-center">{user.referralCode}</div>
+            <div className="text-2xl font-bold text-cyan-400 text-center">{user.referral_code}</div>
           </div>
 
           <div className="space-y-2">

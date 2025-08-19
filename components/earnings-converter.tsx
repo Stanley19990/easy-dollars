@@ -22,7 +22,7 @@ export function EarningsConverter() {
     if (!user || !edAmount) return
 
     const edToConvert = Number.parseFloat(edAmount)
-    const userEdBalance = user.edBalance ?? 0
+    const userEdBalance = user.ed_balance ?? 0
     if (edToConvert <= 0 || edToConvert > userEdBalance) {
       toast.error("Invalid amount or insufficient ED balance")
       return
@@ -33,8 +33,8 @@ export function EarningsConverter() {
     try {
       // Mock conversion - in real app, this would call an API
       const updatedUser = { ...user }
-      updatedUser.edBalance = (updatedUser.edBalance ?? 0) - edToConvert
-      updatedUser.walletBalance = (updatedUser.walletBalance ?? 0) + usdAmount
+      updatedUser.ed_balance = (updatedUser.ed_balance ?? 0) - edToConvert
+      updatedUser.wallet_balance = (updatedUser.wallet_balance ?? 0) + usdAmount
 
       localStorage.setItem("easy_dollars_user", JSON.stringify(updatedUser))
       refreshUser()
@@ -79,10 +79,10 @@ export function EarningsConverter() {
                 value={edAmount}
                 onChange={(e) => setEdAmount(e.target.value)}
                 placeholder="0.00"
-                max={user.edBalance ?? 0}
+                max={user.ed_balance ?? 0}
                 className="bg-slate-800 border-slate-700 focus:border-cyan-500"
               />
-              <div className="text-xs text-slate-400">Available: {(user.edBalance ?? 0).toFixed(2)} ED</div>
+              <div className="text-xs text-slate-400">Available: {(user.ed_balance ?? 0).toFixed(2)} ED</div>
             </div>
 
             <div className="space-y-2">
@@ -106,7 +106,7 @@ export function EarningsConverter() {
               converting ||
               !edAmount ||
               Number.parseFloat(edAmount) <= 0 ||
-              Number.parseFloat(edAmount) > (user.edBalance ?? 0)
+              Number.parseFloat(edAmount) > (user.ed_balance ?? 0)
             }
             className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
           >

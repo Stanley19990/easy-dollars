@@ -77,7 +77,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
       const updatedUser = { ...user }
-      updatedUser.walletBalance = (updatedUser.walletBalance ?? 0) + amount
+      updatedUser.wallet_balance = (updatedUser.wallet_balance ?? 0) + amount
 
       localStorage.setItem("easy_dollars_user", JSON.stringify(updatedUser))
       refreshUser()
