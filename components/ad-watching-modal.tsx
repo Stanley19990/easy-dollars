@@ -6,31 +6,48 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Card, CardContent } from "@/components/ui/card"
 import { Play, Pause, CheckCircle, XCircle, Coins, Clock } from "lucide-react"
-import { adMobService, type AdSession, type AdReward } from "@/lib/admob-service"
 import { useAuth } from "@/hooks/use-auth"
+import { authService, type AdReward } from "@/lib/auth"
 
 interface AdWatchingModalProps {
   isOpen: boolean
   onClose: () => void
   machineId: string
   machineName: string
+  rewardAmount: number
   onRewardEarned: (reward: AdReward) => void
 }
+// Add this at the top if not already exported
+export type { AdReward } from "@/lib/admob-service"
 
-export function AdWatchingModal({ isOpen, onClose, machineId, machineName, onRewardEarned }: AdWatchingModalProps) {
+export function AdWatchingModal({ isOpen, onClose, machineId, machineName, rewardAmount, onRewardEarned }: AdWatchingModalProps) {
   const { user } = useAuth()
-  const [session, setSession] = useState<AdSession | null>(null)
   const [adState, setAdState] = useState<"loading" | "playing" | "completed" | "failed">("loading")
   const [progress, setProgress] = useState(0)
-  const [reward, setReward] = useState<AdReward | null>(null)
   const [countdown, setCountdown] = useState(3)
+  const [reward, setReward] = useState<AdReward | null>(null)
 
+  // Start countdown when modal opens
   useEffect(() => {
     if (isOpen && user) {
-      startAdSession()
+      setAdState("loading")
+      setProgress(0)
+      setCountdown(3)
+      setReward(null)
     }
   }, [isOpen, user])
 
+  // Countdown timer
+  useEffect(() => {
+    if (adState === "loading" && countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+      return () => clearTimeout(timer)
+    } else if (countdown === 0 && adState === "loading") {
+      playAd()
+    }
+  }, [countdown, adState])
+
+  // Simulate progress bar
   useEffect(() => {
     if (adState === "playing") {
       const interval = setInterval(() => {
@@ -41,60 +58,39 @@ export function AdWatchingModal({ isOpen, onClose, machineId, machineName, onRew
           }
           return prev + 100 / 30 // 30 seconds total
         })
-      }, 100)
-
+      }, 1000)
       return () => clearInterval(interval)
     }
   }, [adState])
 
-  useEffect(() => {
-    if (adState === "loading" && countdown > 0) {
-      const timer = setTimeout(() => {
-        setCountdown(countdown - 1)
-      }, 1000)
-      return () => clearTimeout(timer)
-    } else if (countdown === 0 && adState === "loading") {
-      playAd()
-    }
-  }, [countdown, adState])
-
-  const startAdSession = () => {
-    if (!user) return
-
-    const newSession = adMobService.createAdSession(user.id, machineId)
-    setSession(newSession)
-    setAdState("loading")
-    setProgress(0)
-    setReward(null)
-    setCountdown(3)
-  }
-
+  // Play ad (call backend)
   const playAd = async () => {
-    if (!session) return
-
+    if (!user) return
     setAdState("playing")
 
     try {
-      const result = await adMobService.showRewardedAd(session.id)
+      const result = await authService.watchAd(user.id, machineId, rewardAmount)
 
-      if (result.success && result.reward) {
-        setReward(result.reward)
+      if (result.success) {
+        const earnedReward = { amount: rewardAmount } as AdReward
+        setReward(earnedReward)
         setAdState("completed")
-        onRewardEarned(result.reward)
+        onRewardEarned(earnedReward)
       } else {
+        console.error("Ad reward error:", result.error)
         setAdState("failed")
       }
     } catch (error) {
+      console.error("Unexpected error in watchAd:", error)
       setAdState("failed")
     }
   }
 
   const handleClose = () => {
-    setSession(null)
     setAdState("loading")
     setProgress(0)
-    setReward(null)
     setCountdown(3)
+    setReward(null)
     onClose()
   }
 
@@ -108,6 +104,7 @@ export function AdWatchingModal({ isOpen, onClose, machineId, machineName, onRew
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Loading */}
           {adState === "loading" && (
             <Card className="bg-slate-800 border-slate-700">
               <CardContent className="p-6 text-center">
@@ -123,6 +120,7 @@ export function AdWatchingModal({ isOpen, onClose, machineId, machineName, onRew
             </Card>
           )}
 
+          {/* Playing */}
           {adState === "playing" && (
             <Card className="bg-slate-800 border-slate-700">
               <CardContent className="p-6">
@@ -145,13 +143,14 @@ export function AdWatchingModal({ isOpen, onClose, machineId, machineName, onRew
                 <div className="mt-4 p-3 bg-slate-700/50 rounded-lg">
                   <div className="flex items-center justify-center space-x-2 text-sm text-slate-300">
                     <Clock className="h-4 w-4" />
-                    <span>Estimated reward: {adMobService["calculateReward"](machineId).toFixed(2)} ED</span>
+                    <span>Estimated reward: {rewardAmount.toFixed(2)} ED</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
           )}
 
+          {/* Completed */}
           {adState === "completed" && reward && (
             <Card className="bg-slate-800 border-green-500/20">
               <CardContent className="p-6 text-center">
@@ -161,7 +160,7 @@ export function AdWatchingModal({ isOpen, onClose, machineId, machineName, onRew
                   </div>
                 </div>
                 <h3 className="text-lg font-semibold mb-2 text-green-400">Congratulations!</h3>
-                <p className="text-slate-400 mb-4">You've successfully watched the ad</p>
+                <p className="text-slate-400 mb-4">You've successfully earned your reward</p>
 
                 <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg p-4">
                   <div className="flex items-center justify-center space-x-2 text-green-400">
@@ -177,6 +176,7 @@ export function AdWatchingModal({ isOpen, onClose, machineId, machineName, onRew
             </Card>
           )}
 
+          {/* Failed */}
           {adState === "failed" && (
             <Card className="bg-slate-800 border-red-500/20">
               <CardContent className="p-6 text-center">
@@ -186,10 +186,9 @@ export function AdWatchingModal({ isOpen, onClose, machineId, machineName, onRew
                   </div>
                 </div>
                 <h3 className="text-lg font-semibold mb-2 text-red-400">Ad Failed</h3>
-                <p className="text-slate-400 mb-4">The ad couldn't be loaded or was skipped</p>
-
+                <p className="text-slate-400 mb-4">Something went wrong</p>
                 <div className="space-y-2">
-                  <Button onClick={startAdSession} variant="outline" className="w-full bg-transparent">
+                  <Button onClick={playAd} variant="outline" className="w-full bg-transparent">
                     Try Again
                   </Button>
                   <Button onClick={handleClose} variant="ghost" className="w-full">

@@ -5,8 +5,11 @@ export type { User, MachineType, UserMachine }
 
 // Admin emails with access to admin panel
 const ADMIN_EMAILS = ["chiastanley3@gmail.com", "chiastanleymbeng3@gmail.com"]
+export type AdReward = {
+  amount: number
+}
 
-export const authService = {
+export const authService ={ 
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
       const { data, error } = await supabase.from("users").select("count").limit(1)
@@ -128,29 +131,41 @@ export const authService = {
       return []
     }
   },
+async getUserMachines(userId: string): Promise<UserMachine[]> {
+  try {
+    const { data, error } = await supabase
+      .from("user_machines")
+      .select(`
+        *,
+        machine_types (*),
+        earnings:earnings (
+          id,
+          amount,
+          earned_at
+        )
+      `)
+      .eq("user_id", userId)
+      .eq("is_active", true)
 
-  async getUserMachines(userId: string): Promise<UserMachine[]> {
-    try {
-      const { data, error } = await supabase
-        .from("user_machines")
-        .select(`
-          *,
-          machine_types (*)
-        `)
-        .eq("user_id", userId)
-        .eq("is_active", true)
-
-      if (error) {
-        console.error("Error fetching user machines:", error)
-        return []
-      }
-
-      return data || []
-    } catch (error) {
+    if (error) {
       console.error("Error fetching user machines:", error)
       return []
     }
-  },
+
+    // ✅ Aggregate total earnings per machine
+    return (
+      data?.map((m: any) => {
+        const totalEarnings =
+          m.earnings?.reduce((sum: number, e: any) => sum + Number(e.amount), 0) || 0
+        return { ...m, totalEarnings }
+      }) || []
+    )
+  } catch (error) {
+    console.error("Error fetching user machines:", error)
+    return []
+  }
+},
+
 
   async purchaseMachine(userId: string, machineId: string): Promise<{ success: boolean; error?: string }> {
     try {
@@ -354,24 +369,37 @@ async watchAd(
     });
 
     if (sessionError) {
+      console.error("Ad session insert error:", sessionError.message);
       return { success: false, error: sessionError.message };
     }
 
     // Update user balances
-    const { data: user } = await supabase
+    const { data: user, error: userError } = await supabase
       .from("users")
       .select("ed_balance, total_earned")
       .eq("id", userId)
       .single();
 
+    if (userError) {
+      console.error("Fetch user error:", userError.message);
+    }
+
     if (user) {
+      const newEdBalance = (user.ed_balance || 0) + rewardAmount;
+      const newTotalEarned = (user.total_earned || 0) + rewardAmount;
+
       await supabase
         .from("users")
         .update({
-          ed_balance: (user.ed_balance || 0) + rewardAmount,
-          total_earned: (user.total_earned || 0) + rewardAmount,
+          ed_balance: newEdBalance,
+          total_earned: newTotalEarned,
         })
         .eq("id", userId);
+
+      console.log("✅ User balances updated:", {
+        ed_balance: newEdBalance,
+        total_earned: newTotalEarned,
+      });
 
       await supabase.from("earnings").insert({
         user_id: userId,
@@ -381,29 +409,49 @@ async watchAd(
         earning_type: "ad_watch",
         description: "Reward for watching advertisement",
       });
+
+      console.log("✅ Earnings record added:", {
+        user_id: userId,
+        machine_id: machineId,
+        amount: rewardAmount,
+      });
     }
 
     // Update machine stats
-    const { data: machineData } = await supabase
+    const { data: machineData, error: machineError } = await supabase
       .from("user_machines")
       .select("ads_watched_today, total_earned")
       .eq("id", machineId)
       .single();
 
+    if (machineError) {
+      console.error("Fetch machine error:", machineError.message);
+    }
+
     if (machineData) {
+      const newAdsWatched = (machineData.ads_watched_today || 0) + 1;
+      const newMachineEarned = (machineData.total_earned || 0) + rewardAmount;
+
       await supabase
         .from("user_machines")
         .update({
-          ads_watched_today: (machineData.ads_watched_today || 0) + 1,
-          total_earned: (machineData.total_earned || 0) + rewardAmount,
+          ads_watched_today: newAdsWatched,
+          total_earned: newMachineEarned,
           last_ad_watched: new Date().toISOString(),
         })
         .eq("id", machineId);
+
+      console.log("✅ Machine stats updated:", {
+        ads_watched_today: newAdsWatched,
+        total_earned: newMachineEarned,
+        last_ad_watched: new Date().toISOString(),
+      });
     }
 
     return { success: true };
   } catch (error) {
+    console.error("Unexpected error in watchAd:", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
-};
+ }

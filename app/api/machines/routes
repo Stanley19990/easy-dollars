@@ -1,0 +1,69 @@
+// app/api/machines/route.ts
+import { NextResponse } from "next/server"
+import { createClient } from "@/utils/supabase/server"
+
+export async function GET(req: Request) {
+  const supabase = createClient()
+
+  // Get user session
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  // Fetch machines with earnings aggregated
+  const { data, error } = await supabase
+    .from("user_machines")
+    .select(
+      `
+      id,
+      machine_type_id,
+      purchased_at,
+      is_active,
+      machine_types (
+        name,
+        description,
+        price,
+        daily_earnings,
+        monthly_earnings,
+        image_url
+      ),
+      earnings:earnings (
+        amount
+      )
+    `
+    )
+    .eq("user_id", user.id)
+
+  if (error) {
+    console.error("Error fetching machines:", error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // Aggregate earnings per machine
+  const machines = data.map((m) => {
+    const totalEarnings =
+      m.earnings?.reduce((sum: number, e: { amount: number }) => sum + Number(e.amount), 0) || 0
+
+    return {
+      id: m.id,
+      purchased_at: m.purchased_at,
+      is_active: m.is_active,
+      spec: {
+        name: m.machine_types?.name,
+        description: m.machine_types?.description,
+        price: m.machine_types?.price,
+        daily_earning_rate: m.machine_types?.daily_earnings,
+        monthly_earning_rate: m.machine_types?.monthly_earnings,
+        image_url: m.machine_types?.image_url,
+      },
+      totalEarned: totalEarnings,
+    }
+  })
+
+  return NextResponse.json(machines)
+}

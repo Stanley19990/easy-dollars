@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { User, Mail, Phone, MapPin, Calendar, Edit3 } from "lucide-react"
 import { toast } from "sonner"
+import { supabase } from "@/lib/supabase"
 
 interface ProfileModalProps {
   open: boolean
@@ -23,27 +24,47 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
     phone: user?.phone || "",
     country: user?.country || "",
   })
+  const [saving, setSaving] = useState(false)
 
-  const handleSave = async () => {
-    if (!user) return
+ const handleSave = async () => {
+  if (!user) return;
 
-    try {
-      const updatedUser = {
-        ...user,
+  try {
+    // Check if phone already exists
+    const { data: existingUsers } = await supabase
+      .from("users")
+      .select("id")
+      .eq("phone", profileData.phone)
+      .neq("id", user.id)
+      .limit(1);
+
+    if (existingUsers && existingUsers.length > 0) {
+      toast.error("This phone number is already in use.");
+      return;
+    }
+
+    // Update user
+    const { data, error } = await supabase
+      .from("users")
+      .update({
         full_name: profileData.fullName,
         phone: profileData.phone,
         country: profileData.country,
-      }
+      })
+      .eq("id", user.id)
+      .select()
+      .single();
 
-      localStorage.setItem("easy_dollars_user", JSON.stringify(updatedUser))
-      refreshUser()
+    if (error) throw error;
 
-      toast.success("Profile updated successfully!")
-      setEditing(false)
-    } catch (error) {
-      toast.error("Failed to update profile")
-    }
+    toast.success("Profile updated successfully!");
+    refreshUser();
+    setEditing(false);
+  } catch (error: any) {
+    console.error(error);
+    toast.error(error.message || "Failed to update profile");
   }
+};
 
   const handleCancel = () => {
     setProfileData({
@@ -92,7 +113,7 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                 id="fullName"
                 value={profileData.fullName}
                 onChange={(e) => setProfileData({ ...profileData, fullName: e.target.value })}
-                disabled={!editing}
+                disabled={!editing || saving}
                 className="bg-slate-800 border-slate-700 focus:border-cyan-500 disabled:opacity-60"
               />
             </div>
@@ -115,7 +136,7 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                 id="phone"
                 value={profileData.phone}
                 onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                disabled={!editing}
+                disabled={!editing || saving}
                 className="bg-slate-800 border-slate-700 focus:border-cyan-500 disabled:opacity-60"
                 placeholder="Enter phone number"
               />
@@ -130,7 +151,7 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                 id="country"
                 value={profileData.country}
                 onChange={(e) => setProfileData({ ...profileData, country: e.target.value })}
-                disabled={!editing}
+                disabled={!editing || saving}
                 className="bg-slate-800 border-slate-700 focus:border-cyan-500 disabled:opacity-60"
                 placeholder="Enter country"
               />
@@ -155,6 +176,7 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
               <>
                 <Button
                   onClick={handleSave}
+                  disabled={saving}
                   className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
                 >
                   Save Changes
@@ -162,6 +184,7 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                 <Button
                   onClick={handleCancel}
                   variant="outline"
+                  disabled={saving}
                   className="flex-1 border-slate-700 text-slate-400 hover:text-white bg-transparent"
                 >
                   Cancel
