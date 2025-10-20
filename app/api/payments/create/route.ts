@@ -36,10 +36,7 @@ export async function POST(request: NextRequest) {
       message: `Purchase ${machineName} - EasyDollars`
     }
 
-    console.log('📤 Creating Fapshi direct payment:', {
-      ...fapshiPayload,
-      phone: `***${phone.slice(-3)}` // Hide full phone in logs
-    })
+    console.log('📤 Creating Fapshi direct payment:', fapshiPayload)
 
     const response = await fetch('https://live.fapshi.com/direct-pay', {
       method: 'POST',
@@ -52,8 +49,9 @@ export async function POST(request: NextRequest) {
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Payment failed: ${response.status} - ${errorText}`)
+      const errorData = await response.json()
+      console.log('❌ Fapshi error:', errorData)
+      throw new Error(errorData.message || `Payment failed: ${response.status}`)
     }
     
     const data = await response.json()
