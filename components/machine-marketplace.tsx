@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { authService } from "@/lib/auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Zap, TrendingUp, Star, Clock, DollarSign, Cpu, Play, BarChart3 } from "lucide-react"
+import { ShoppingCart, Zap, TrendingUp, Star, Clock, DollarSign, Cpu, Play, BarChart3, Calendar, Image as ImageIcon, Timer, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
+import { PaymentModal } from "@/components/payment-modal"
+import { supabase } from "@/lib/supabase"
 
 interface MachineType {
   id: string
@@ -20,21 +21,121 @@ interface MachineType {
   image_query: string
   is_available: boolean
   gradient: string
+  image_url?: string
+  // Database field names (these might be different)
+  daily_earnings?: number
+  monthly_earnings?: number
 }
 
-// ✅ Add props interface to accept onWatchAd
+interface MiningMachine {
+  isActive: boolean;
+  lastClaim: string | null;
+  activatedAt: string | null;
+  dailyEarnings: number;
+  name: string;
+  image: string | null;
+  canClaim: boolean;
+  progress: number;
+  hoursRemaining: number;
+  timeRemaining: string;
+}
+
 interface MachineMarketplaceProps {
-  onWatchAd?: (machineId: string, machineName: string) => void
+  onWatchAd?: (machineId: string, machineName: string) => void;
+  onActivateMachine?: (machineId: string) => void;
+  onClaimEarnings?: (machineId: string) => void;
+  miningMachines?: Record<string, MiningMachine>;
+  activatingMachine?: string | null;
+  claimingMachine?: string | null;
 }
 
-// ✅ Update function signature to accept props
-export function MachineMarketplace({ onWatchAd }: MachineMarketplaceProps) {
+export function MachineMarketplace({ 
+  onWatchAd, 
+  onActivateMachine, 
+  onClaimEarnings, 
+  miningMachines = {}, 
+  activatingMachine = null, 
+  claimingMachine = null 
+}: MachineMarketplaceProps) {
   const { user, refreshUser } = useAuth()
   const [purchasing, setPurchasing] = useState<string | null>(null)
-  const [images, setImages] = useState<Record<string, string>>({})
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [selectedMachine, setSelectedMachine] = useState<MachineType | null>(null)
+  const [databaseMachines, setDatabaseMachines] = useState<MachineType[]>([])
+  const [imagesLoaded, setImagesLoaded] = useState<Record<string, boolean>>({})
+  const [userMachines, setUserMachines] = useState<any[]>([])
+
+  // Fetch machines from database including image URLs
+const fetchMachinesFromDatabase = async () => {
+  try {
+    console.log('🔍 Fetching machines from database...')
+    
+    const { data, error } = await supabase
+      .from('machine_types')
+      .select('*')
+      .order('id')
+
+    if (error) {
+      console.error('❌ Database fetch error:', error)
+      throw error
+    }
+    
+    console.log('✅ Machines from database:', data?.map(m => ({ id: m.id, name: m.name, typeOfId: typeof m.id })))
+    
+    if (data && data.length > 0) {
+      setDatabaseMachines(data)
+      
+      // Preload images
+      data.forEach(machine => {
+        if (machine.image_url) {
+          const img = new Image()
+          img.src = machine.image_url
+          img.onload = () => {
+            setImagesLoaded(prev => ({ ...prev, [machine.id]: true }))
+          }
+          img.onerror = () => {
+            console.warn(`Failed to load image for machine ${machine.id}`)
+            setImagesLoaded(prev => ({ ...prev, [machine.id]: false }))
+          }
+        }
+      })
+    } else {
+      console.log('⚠️ No machines found in database, using fallback')
+      setDatabaseMachines(machines)
+    }
+  } catch (error) {
+    console.error('❌ Error fetching machines from database:', error)
+    // Fallback to hardcoded machines if database fails
+    setDatabaseMachines(machines)
+  }
+}
+
+  // Fetch user's owned machines
+  const fetchUserMachines = async () => {
+    if (!user) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_machines')
+        .select('machine_type_id, is_active, activated_at, last_claim_time')
+        .eq('user_id', user.id)
+      
+      if (error) throw error
+      setUserMachines(data || [])
+    } catch (error) {
+      console.error('Error fetching user machines:', error)
+    }
+  }
+
+  useEffect(() => {
+    fetchMachinesFromDatabase()
+    if (user) {
+      fetchUserMachines()
+    }
+  }, [user])
 
   const machines: MachineType[] = [
-    // --- all 8 machines exactly as you wrote ---
+    // ... (keep your existing machines array exactly as it is)
     {
       id: "1",
       name: "AI Gaming Starter Pro",
@@ -46,7 +147,7 @@ export function MachineMarketplace({ onWatchAd }: MachineMarketplaceProps) {
       features: ["4K Holographic Display", "Neural Ad Targeting", "24/7 Operation", "Real-time Tracking"],
       image_query: "futuristic blue holographic AI gaming machine with glowing circuits and 4K displays",
       is_available: true,
-      gradient: "from-blue-500 to-cyan-500",
+      gradient: "blue-cyan",
     },
     {
       id: "2",
@@ -59,7 +160,7 @@ export function MachineMarketplace({ onWatchAd }: MachineMarketplaceProps) {
       features: ["Premium 4K Animations", "Smart Algorithms", "Holographic Interface", "Bonus Multipliers"],
       image_query: "purple smart gaming AI engine with holographic interface and glowing energy cores",
       is_available: true,
-      gradient: "from-purple-500 to-pink-500",
+      gradient: "purple-pink",
     },
     {
       id: "3",
@@ -72,7 +173,7 @@ export function MachineMarketplace({ onWatchAd }: MachineMarketplaceProps) {
       features: ["Quantum Processing", "Multiple Streams", "Ultra-realistic Visuals", "VIP Ad Access"],
       image_query: "green quantum gaming processor with energy particles and advanced holographic displays",
       is_available: true,
-      gradient: "from-green-500 to-emerald-500",
+      gradient: "green-emerald",
     },
     {
       id: "4",
@@ -85,7 +186,7 @@ export function MachineMarketplace({ onWatchAd }: MachineMarketplaceProps) {
       features: ["Deep Learning AI", "Ultra-realistic 4K", "Exclusive Networks", "Advanced Analytics"],
       image_query: "orange neural gaming maximizer with brain-like patterns and glowing neural networks",
       is_available: true,
-      gradient: "from-orange-500 to-red-500",
+      gradient: "orange-red",
     },
     {
       id: "5",
@@ -98,7 +199,7 @@ export function MachineMarketplace({ onWatchAd }: MachineMarketplaceProps) {
       features: ["Superintelligent AI", "Premium Networks", "White-glove Support", "Exclusive Aesthetics"],
       image_query: "red hyper gaming intelligence machine with energy beams and advanced holographic displays",
       is_available: true,
-      gradient: "from-red-500 to-pink-500",
+      gradient: "red-pink",
     },
     {
       id: "6",
@@ -111,7 +212,7 @@ export function MachineMarketplace({ onWatchAd }: MachineMarketplaceProps) {
       features: ["8K Ultra-realistic", "Matrix Processing", "Next-gen Aesthetics", "Quantum Optimization"],
       image_query: "golden elite gaming matrix with circuit patterns and holographic gaming interface",
       is_available: true,
-      gradient: "from-yellow-500 to-amber-500",
+      gradient: "yellow-amber",
     },
     {
       id: "7",
@@ -124,7 +225,7 @@ export function MachineMarketplace({ onWatchAd }: MachineMarketplaceProps) {
       features: ["Unlimited Processing", "Omnipotent AI", "Cosmic Networks", "Interdimensional Tech"],
       image_query: "cosmic silver omega gaming core with space portals and divine energy effects",
       is_available: false,
-      gradient: "from-indigo-500 to-purple-500",
+      gradient: "indigo-purple",
     },
     {
       id: "8",
@@ -137,53 +238,154 @@ export function MachineMarketplace({ onWatchAd }: MachineMarketplaceProps) {
       features: ["Transcendent AI", "Universal Processing", "Reality-bending", "Multiverse Networks"],
       image_query: "divine white and gold genesis gaming machine with heavenly light effects and cosmic energy",
       is_available: false,
-      gradient: "from-pink-500 to-rose-500",
+      gradient: "pink-rose",
     },
   ]
 
-  // ---------- MODIFIED: use local public/images mapping ----------
-  useEffect(() => {
-    const mapping: Record<string, string> = {
-      "1": "/images/Generated Image September 15, 2025 - 7_42PM.png",
-      "2": "/images/Generated Image September 15, 2025 - 8_10PM.png",
-      "3": "/images/Generated Image September 16, 2025 - 1_23PM.png",
-      "4": "/images/Generated Image September 16, 2025 - 1_30PM.png",
-      "5": "/images/Generated Image September 16, 2025 - 1_56PM.png",
-      "6": "/images/Generated Image September 15, 2025 - 7_36PM.png",
-      "7": "/images/Generated Image September 16, 2025 - 1_56PM(2).png",
-      "8": "/images/Generated Image September 16, 2025 - 1_56PM(3).png",
-    }
-    setImages(mapping)
-  }, [])
-  // ---------------------------------------------------------------
+  // Use database machines if available, otherwise fallback to hardcoded
+  const displayMachines = databaseMachines.length > 0 ? databaseMachines : machines
 
-  const handlePurchase = async (machineId: string) => {
-    if (!user) return
+  // Helper function to get earnings value safely
+  const getDailyEarnings = (machine: MachineType) => {
+    // Try database field first, then fallback to hardcoded field
+    return machine.daily_earnings || machine.daily_earning_rate || 0
+  }
 
-    const machine = machines.find((m) => m.id === machineId)
-    if (!machine) return
+  const getMonthlyEarnings = (machine: MachineType) => {
+    // Try database field first, then fallback to hardcoded field
+    return machine.monthly_earnings || machine.monthly_earning || 0
+  }
 
-    const userBalanceXAF = (user.wallet_balance ?? 0) * 600
-    if (userBalanceXAF < machine.price) {
-      toast.error("Insufficient balance. Please deposit funds to purchase this machine.")
-      return
-    }
-
-    setPurchasing(machineId)
-    try {
-      const result = await authService.purchaseMachine(user.id, machineId)
-      if (result.success) {
-        await refreshUser()
-        toast.success(`${machine.name} purchased successfully! Start earning now by watching ads.`)
-      } else {
-        toast.error(result.error || "Purchase failed")
+  // Get gradient classes based on gradient type
+  const getGradientClasses = (gradientType: string) => {
+    const gradients: Record<string, { bg: string; border: string; button: string }> = {
+      "blue-cyan": {
+        bg: "from-blue-500 to-cyan-500",
+        border: "border-blue-500/20",
+        button: "from-blue-500 to-cyan-500"
+      },
+      "purple-pink": {
+        bg: "from-purple-500 to-pink-500",
+        border: "border-purple-500/20",
+        button: "from-purple-500 to-pink-500"
+      },
+      "green-emerald": {
+        bg: "from-green-500 to-emerald-500",
+        border: "border-green-500/20",
+        button: "from-green-500 to-emerald-500"
+      },
+      "orange-red": {
+        bg: "from-orange-500 to-red-500",
+        border: "border-orange-500/20",
+        button: "from-orange-500 to-red-500"
+      },
+      "red-pink": {
+        bg: "from-red-500 to-pink-500",
+        border: "border-red-500/20",
+        button: "from-red-500 to-pink-500"
+      },
+      "yellow-amber": {
+        bg: "from-yellow-500 to-amber-500",
+        border: "border-yellow-500/20",
+        button: "from-yellow-500 to-amber-500"
+      },
+      "indigo-purple": {
+        bg: "from-indigo-500 to-purple-500",
+        border: "border-indigo-500/20",
+        button: "from-indigo-500 to-purple-500"
+      },
+      "pink-rose": {
+        bg: "from-pink-500 to-rose-500",
+        border: "border-pink-500/20",
+        button: "from-pink-500 to-rose-500"
       }
-    } catch (error) {
-      console.error(error)
-      toast.error("An error occurred during purchase")
-    } finally {
-      setPurchasing(null)
     }
+    
+    return gradients[gradientType] || gradients["blue-cyan"]
+  }
+
+  // Check if user owns a machine
+  const userOwnsMachine = (machineId: string) => {
+    return userMachines.some(um => um.machine_type_id === machineId)
+  }
+
+  // Get mining status for a machine
+  const getMiningStatus = (machineId: string) => {
+    const userMachine = userMachines.find(um => um.machine_type_id === machineId)
+    const miningData = miningMachines[machineId]
+    
+    return {
+      owned: !!userMachine,
+      isActive: userMachine?.is_active || false,
+      miningData: miningData
+    }
+  }
+
+  // Handle activate machine
+  const handleActivate = async (machineId: string) => {
+    if (!onActivateMachine) return
+    
+    await onActivateMachine(machineId)
+    // Refresh user machines after activation
+    setTimeout(() => fetchUserMachines(), 1000)
+  }
+
+  // Handle claim earnings
+  const handleClaim = async (machineId: string) => {
+    if (!onClaimEarnings) return
+    
+    await onClaimEarnings(machineId)
+    // Refresh user machines after claim
+    setTimeout(() => fetchUserMachines(), 1000)
+  }
+
+  // This function is called when user clicks "Buy Now"
+const handlePurchaseClick = (machineId: string) => {
+  if (!user) {
+    toast.error("Please log in to purchase machines")
+    return
+  }
+  
+  console.log('🛒 DEBUG: Purchase clicked')
+  console.log('  - Requested machine ID:', machineId, typeof machineId)
+  console.log('  - User ID:', user.id, typeof user.id)
+  
+  // Log ALL available machines to see what we have
+  console.log('📋 ALL display machines:', displayMachines.map(m => ({
+    id: m.id, 
+    name: m.name,
+    typeOfId: typeof m.id,
+    price: m.price
+  })))
+  
+  const machine = displayMachines.find((m) => m.id === machineId)
+  
+  if (!machine) {
+    console.error('❌ Machine not found in frontend data')
+    console.error('❌ Available machine IDs:', displayMachines.map(m => m.id))
+    toast.error("Machine not found. Please try again.")
+    return
+  }
+
+  console.log('✅ Machine found in frontend:')
+  console.log('  - Machine ID:', machine.id, typeof machine.id)
+  console.log('  - Machine Name:', machine.name)
+  console.log('  - Machine Price:', machine.price, typeof machine.price)
+
+  // Set the selected machine and open payment modal
+  setSelectedMachine(machine)
+  setPaymentModalOpen(true)
+}
+
+  // This function is called after successful payment
+  const handlePaymentSuccess = () => {
+    toast.success("Payment completed! Your machine will be activated shortly.")
+    setPaymentModalOpen(false)
+    setSelectedMachine(null)
+    // Refresh user data to show new machine
+    refreshUser()
+    // Refresh user machines list
+    fetchUserMachines()
   }
 
   const getMachineIcon = (index: number) => {
@@ -195,193 +397,270 @@ export function MachineMarketplace({ onWatchAd }: MachineMarketplaceProps) {
   if (!user) return null
 
   return (
-    <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <ShoppingCart className="h-6 w-6 text-cyan-400" />
-          <span className="text-2xl">AI Gaming Machine Marketplace</span>
-        </CardTitle>
-        <p className="text-slate-400 text-base mt-2">
-          Purchase AI-powered gaming machines with ultra-realistic 4K animations that automatically watch ads and earn
-          you money 24/7. Each machine features cutting-edge gaming aesthetics and operates independently.
-        </p>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
-          {machines.map((machine, index) => {
-            const insufficientFunds = (user.wallet_balance ?? 0) * 600 < machine.price
-            return (
-              <Card
-                key={machine.id}
-                className={`bg-slate-800/50 border-slate-700 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/20 ${
-                  !machine.is_available ? "opacity-90" : ""
-                }`}
-              >
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <CardTitle className="text-xl text-white font-bold">{machine.name}</CardTitle>
-                    {!machine.is_available ? (
-                      <Badge
-                        variant="secondary"
-                        className="bg-amber-500/20 text-amber-400 border-0 font-bold text-sm px-3 py-1"
-                      >
-                        Coming Soon
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="secondary"
-                        className={`bg-gradient-to-r ${machine.gradient} text-white border-0 font-bold text-sm px-3 py-1`}
-                      >
-                        10 days ROI
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  {/* Machine Image */}
-                  <div
-                    className={`aspect-square bg-gradient-to-br ${machine.gradient} rounded-xl flex items-center justify-center relative overflow-hidden shadow-lg transform transition-transform duration-500 hover:scale-105 hover:rotate-1`}
-                  >
-                    <div className="absolute inset-0 bg-black/10"></div>
-                    <img
-                      src={images[machine.id] || "/placeholder.svg"}
-                      alt={machine.name}
-                      className="w-full h-full object-cover rounded-xl transition-transform duration-500 hover:scale-110 hover:rotate-1"
-                    />
-                    <div className="absolute top-3 right-3">
-                      <div
-                        className={`w-3 h-3 ${!machine.is_available ? "bg-amber-400" : "bg-green-400"} rounded-full animate-pulse shadow-lg`}
-                      ></div>
-                    </div>
-                    <div className="absolute bottom-3 left-3">
-                      <div className={`p-2 bg-gradient-to-r ${machine.gradient} rounded-lg shadow-lg`}>
-                        {getMachineIcon(index)}
-                      </div>
-                    </div>
-                  </div>
+    <>
+      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <ShoppingCart className="h-6 w-6 text-cyan-400" />
+            <span className="text-2xl">AI Gaming Machine Marketplace</span>
+          </CardTitle>
+          <p className="text-slate-400 text-base mt-2">
+            Purchase AI-powered gaming machines with ultra-realistic 4K animations that automatically watch ads and earn
+            you money 24/7.
+          </p>
+        </CardHeader>
 
-                  {/* Description & Features */}
-                  <div>
-                    <p className="text-sm text-slate-300 leading-relaxed mb-3">{machine.description}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {machine.features.map((feature, idx) => (
-                        <div key={idx} className="flex items-center space-x-2 text-xs text-slate-400">
-                          <div className={`w-1.5 h-1.5 bg-gradient-to-r ${machine.gradient} rounded-full`}></div>
-                          <span>{feature}</span>
-                        </div>
-                      ))}
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+            {displayMachines.map((machine, index) => {
+              const isImageLoaded = imagesLoaded[machine.id]
+              const hasDatabaseImage = machine.image_url
+              const dailyEarnings = getDailyEarnings(machine)
+              const monthlyEarnings = getMonthlyEarnings(machine)
+              const gradient = getGradientClasses(machine.gradient || "blue-cyan")
+              const miningStatus = getMiningStatus(machine.id)
+              const miningData = miningStatus.miningData
+              
+              return (
+                <Card
+                  key={machine.id}
+                  className={`bg-slate-800/50 border-slate-700 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/20 ${
+                    !machine.is_available ? "opacity-90" : ""
+                  }`}
+                >
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <CardTitle className="text-xl text-white font-bold">{machine.name}</CardTitle>
+                      {!machine.is_available ? (
+                        <Badge
+                          variant="secondary"
+                          className="bg-amber-500/20 text-amber-400 border-0 font-bold text-sm px-3 py-1"
+                        >
+                          Coming Soon
+                        </Badge>
+                      ) : miningStatus.owned ? (
+                        <Badge
+                          variant="secondary"
+                          className="bg-green-500/20 text-green-400 border-0 font-bold text-sm px-3 py-1"
+                        >
+                          Owned
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="secondary"
+                          className={`bg-gradient-to-r ${gradient.button} text-white border-0 font-bold text-sm px-3 py-1`}
+                        >
+                          10 days ROI
+                        </Badge>
+                      )}
                     </div>
-                  </div>
+                  </CardHeader>
 
-                  {/* Earnings */}
-                  <div className="bg-slate-700/30 rounded-lg p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2 text-green-400">
-                        <TrendingUp className="h-4 w-4" />
-                        <span className="font-bold text-lg">{machine.daily_earning_rate.toLocaleString()} XAF</span>
-                      </div>
-                      <div className="text-xs text-slate-400">per day</div>
-                    </div>
-
-                    <div className="text-center">
-                      <div className="text-xs text-slate-400 mb-1">Monthly Potential</div>
-                      <div className="text-amber-400 font-bold text-lg">
-                        {machine.monthly_earning.toLocaleString()} XAF
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-center space-x-4 text-xs text-slate-400">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="h-3 w-3" />
-                        <span>24/7 Operation</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Star className="h-3 w-3" />
-                        <span>4K Gaming AI</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Purchase */}
-                  <div className="space-y-4">
-                    <div className="text-center bg-slate-800/50 rounded-lg p-4">
-                      <div className="text-3xl font-bold text-white mb-1">{machine.price.toLocaleString()} XAF</div>
-                      <div className="text-sm text-slate-400">${(machine.price / 600).toFixed(2)} USD equivalent</div>
-                    </div>
-
-                    <Button
-                      onClick={() => handlePurchase(machine.id)}
-                      disabled={!machine.is_available || purchasing === machine.id || insufficientFunds}
-                      className={`w-full bg-gradient-to-r ${machine.gradient} hover:opacity-90 disabled:opacity-50 font-bold text-lg py-6 shadow-lg`}
+                  <CardContent className="space-y-5">
+                    {/* Machine Image */}
+                    <div
+                      className={`aspect-square bg-gradient-to-br ${gradient.bg} rounded-xl flex items-center justify-center relative overflow-hidden shadow-lg transform transition-transform duration-500 hover:scale-105 hover:rotate-1`}
                     >
-                      {!machine.is_available ? "Coming Soon" : purchasing === machine.id ? "Purchasing..." : "Buy Now"}
-                    </Button>
-
-                    {/* ✅ Add Watch Ad button if onWatchAd prop exists */}
-                    {onWatchAd && machine.is_available && (
-                      <Button
-                        onClick={() => onWatchAd(machine.id, machine.name)}
-                        className={`w-full bg-cyan-500 hover:bg-cyan-600 font-bold text-lg py-3 mt-2 shadow-lg`}
-                      >
-                        Watch Ad
-                      </Button>
-                    )}
-
-                    {insufficientFunds && machine.is_available && (
-                      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                        <p className="text-xs text-red-400 text-center">
-                          Need {(machine.price - (user?.wallet_balance ?? 0) * 600).toLocaleString()} XAF more
-                        </p>
+                      <div className="absolute inset-0 bg-black/10"></div>
+                      
+                      {hasDatabaseImage ? (
+                        <>
+                          {/* Loading skeleton for database images */}
+                          {!isImageLoaded && (
+                            <div className="absolute inset-0 bg-slate-700 animate-pulse flex items-center justify-center">
+                              <ImageIcon className="h-12 w-12 text-slate-500" />
+                            </div>
+                          )}
+                          
+                          {/* Database image */}
+                          <img
+                            src={machine.image_url}
+                            alt={machine.name}
+                            className={`w-full h-full object-cover rounded-xl transition-all duration-500 ${
+                              isImageLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+                            } hover:scale-110 hover:rotate-1`}
+                            onLoad={() => setImagesLoaded(prev => ({ ...prev, [machine.id]: true }))}
+                            onError={() => setImagesLoaded(prev => ({ ...prev, [machine.id]: false }))}
+                          />
+                        </>
+                      ) : (
+                        /* Fallback to local images if no database image */
+                        <img
+                          src={`/images/Generated Image September 15, 2025 - 7_42PM.png`}
+                          alt={machine.name}
+                          className="w-full h-full object-cover rounded-xl transition-transform duration-500 hover:scale-110 hover:rotate-1"
+                        />
+                      )}
+                      
+                      <div className="absolute top-3 right-3">
+                        <div
+                          className={`w-3 h-3 ${!machine.is_available ? "bg-amber-400" : miningStatus.owned ? "bg-green-400" : "bg-blue-400"} rounded-full animate-pulse shadow-lg`}
+                        ></div>
                       </div>
-                    )}
-                  </div>
-
-                  {/* ROI */}
-                  <div className="bg-slate-700/20 rounded-lg p-3">
-                    <div className="text-xs text-slate-400 mb-2 font-semibold">Return on Investment</div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="text-slate-400">Break even: </span>
-                        <span className="text-green-400 font-bold">10 days</span>
+                      <div className="absolute bottom-3 left-3">
+                        <div className={`p-2 bg-gradient-to-r ${gradient.button} rounded-lg shadow-lg`}>
+                          {getMachineIcon(index)}
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-slate-400">10x return: </span>
-                        <span className="text-amber-400 font-bold">30 days</span>
+
+                      {/* Mining Progress Overlay */}
+                      {miningStatus.owned && miningData?.isActive && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-2">
+                          <div className="flex items-center justify-between text-xs text-white">
+                            <div className="flex items-center space-x-1">
+                              <Timer className="h-3 w-3" />
+                              <span>{miningData.timeRemaining}</span>
+                            </div>
+                            <div className="w-16 bg-slate-600 rounded-full h-1.5">
+                              <div 
+                                className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
+                                style={{ width: `${miningData.progress}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Description & Features */}
+                    <div>
+                      <p className="text-sm text-slate-300 leading-relaxed mb-3">{machine.description}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {machine.features && machine.features.map((feature, idx) => (
+                          <div key={idx} className="flex items-center space-x-2 text-xs text-slate-400">
+                            <div className={`w-1.5 h-1.5 bg-gradient-to-r ${gradient.button} rounded-full`}></div>
+                            <span>{feature}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
 
-        {/* Info Section */}
-        <div className="mt-8 p-6 bg-slate-800/30 rounded-xl">
-          <div className="text-slate-300 space-y-3">
-            <h3 className="font-bold text-cyan-400 text-lg mb-4">How AI Gaming Machines Work:</h3>
-            <div className="grid md:grid-cols-2 gap-4 text-sm">
-              <div className="space-y-2">
-                <p>• Each machine features ultra-realistic 4K gaming animations</p>
-                <p>• Machines automatically watch targeted advertisements 24/7</p>
-                <p>• Earnings are credited to your ED balance in real-time</p>
-                <p>• Convert ED to USD anytime through the wallet section</p>
-              </div>
-              <div className="space-y-2">
-                <p>• Higher-tier machines access premium ad networks</p>
-                <p>• All machines guarantee 10x your investment in 30 days</p>
-                <p>• Break even in just 10 days with consistent operation</p>
-                <p>• Advanced AI optimizes earnings automatically</p>
-              </div>
-            </div>
-            <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-              <p className="font-bold text-amber-400 mb-2">Withdrawal Rules:</p>
-              <p className="text-sm">• New users must wait 1 month before first withdrawal</p>
-              <p className="text-sm">• After first withdrawal, you can cash out weekly based on your payment method</p>
-            </div>
+                    {/* EARNINGS INFORMATION */}
+                    <div className="bg-slate-800/70 rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <DollarSign className="h-4 w-4 text-green-400" />
+                          <span className="text-sm text-slate-300">Daily Earnings</span>
+                        </div>
+                        <span className="text-lg font-bold text-green-400">
+                          {dailyEarnings.toLocaleString()} XAF
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="h-4 w-4 text-blue-400" />
+                          <span className="text-sm text-slate-300">Monthly Earnings</span>
+                        </div>
+                        <span className="text-lg font-bold text-blue-400">
+                          {monthlyEarnings.toLocaleString()} XAF
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <TrendingUp className="h-4 w-4 text-amber-400" />
+                          <span className="text-sm text-slate-300">ROI Period</span>
+                        </div>
+                        <span className="text-sm font-bold text-amber-400">10 Days</span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="space-y-3">
+                      {/* Price Display */}
+                      <div className="text-center bg-slate-800/50 rounded-lg p-4">
+                        <div className="text-3xl font-bold text-white mb-1">{machine.price.toLocaleString()} XAF</div>
+                        <div className="text-sm text-slate-400">${(machine.price / 600).toFixed(2)} USD equivalent</div>
+                      </div>
+
+                      {/* Mining Action Buttons */}
+                      {miningStatus.owned ? (
+                        <div className="space-y-2">
+                          {miningData?.canClaim ? (
+                            <Button
+                              onClick={() => handleClaim(machine.id)}
+                              disabled={claimingMachine === machine.id}
+                              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 font-bold text-lg py-6 shadow-lg"
+                            >
+                              {claimingMachine === machine.id ? (
+                                "🔄 Claiming..."
+                              ) : (
+                                <>
+                                  <CheckCircle className="h-5 w-5 mr-2" />
+                                  Claim {dailyEarnings.toLocaleString()} XAF
+                                </>
+                              )}
+                            </Button>
+                          ) : miningData?.isActive ? (
+                            <Button
+                              disabled
+                              className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 font-bold text-lg py-6 shadow-lg"
+                            >
+                              <Timer className="h-5 w-5 mr-2" />
+                              Mining... {miningData.timeRemaining}
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => handleActivate(machine.id)}
+                              disabled={activatingMachine === machine.id}
+                              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 font-bold text-lg py-6 shadow-lg"
+                            >
+                              {activatingMachine === machine.id ? (
+                                "🔄 Activating..."
+                              ) : (
+                                <>
+                                  <Zap className="h-5 w-5 mr-2" />
+                                  Start Mining
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        /* Purchase Button for non-owned machines */
+                        <Button
+                          onClick={() => handlePurchaseClick(machine.id)}
+                          disabled={!machine.is_available || purchasing === machine.id}
+                          className={`w-full bg-gradient-to-r ${gradient.button} hover:opacity-90 disabled:opacity-50 font-bold text-lg py-6 shadow-lg`}
+                        >
+                          {!machine.is_available ? "Coming Soon" : purchasing === machine.id ? "Processing..." : "Buy Now"}
+                        </Button>
+                      )}
+
+                      {/* Watch Ad Button (Optional) */}
+                      {onWatchAd && machine.is_available && miningStatus.owned && !miningData?.isActive && (
+                        <Button
+                          onClick={() => onWatchAd(machine.id, machine.name)}
+                          className="w-full bg-cyan-500 hover:bg-cyan-600 font-bold text-lg py-3 shadow-lg"
+                        >
+                          Watch Ad
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Payment Modal */}
+      {selectedMachine && (
+        <PaymentModal
+          open={paymentModalOpen}
+          onOpenChange={setPaymentModalOpen}
+          machine={selectedMachine}
+          user={{
+            id: user.id,
+            email: user.email || "",
+            name: user.username || "",
+            phone: user.phone || ""
+          }}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
+    </>
   )
 }

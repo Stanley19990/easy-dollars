@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { WalletBalance } from "@/components/wallet-balance"
-import { WithdrawalSection } from "@/components/withdrawal-section"
 import { TransactionHistory } from "@/components/transaction-history"
 import { EarningsConverter } from "@/components/earnings-converter"
 import { FloatingParticles } from "@/components/floating-particles"
@@ -13,12 +12,13 @@ import { Toaster, toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 
 export default function WalletPage() {
-  const { user, loading, refreshUser } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
 
-  const [walletData, setWalletData] = useState<any>(null)
+  const [walletData, setWalletData] = useState<{ wallet_balance: number, created_at?: string } | null>(null)
   const [transactions, setTransactions] = useState<any[]>([])
   const [referrals, setReferrals] = useState<any[]>([])
+  const [canWithdraw, setCanWithdraw] = useState(false)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -32,23 +32,32 @@ export default function WalletPage() {
       // Wallet balance
       const { data: wallet, error: walletError } = await supabase
         .from("users")
-        .select("wallet_balance")
+        .select("wallet_balance, created_at")
         .eq("id", user.id)
         .single()
       if (walletError) throw walletError
       setWalletData(wallet)
 
-      // Transactions
+      // Check 1 month condition
+      if (wallet?.created_at) {
+        const createdAt = new Date(wallet.created_at)
+        const oneMonthLater = new Date(createdAt)
+        oneMonthLater.setMonth(createdAt.getMonth() + 1)
+        setCanWithdraw(new Date() >= oneMonthLater)
+      }
+
+      // Transactions - Only show earnings and withdrawals
       const { data: txs, error: txError } = await supabase
         .from("transactions")
         .select("*")
         .eq("user_id", user.id)
+        .in("type", ['earning', 'withdrawal'])
         .order("created_at", { ascending: false })
         .limit(50)
       if (txError) throw txError
       setTransactions(txs ?? [])
 
-      // Referrals (for bonus display) — fix ambiguous FK
+      // Referrals
       const { data: refs, error: refError } = await supabase
         .from("referrals")
         .select(`
@@ -71,6 +80,20 @@ export default function WalletPage() {
   useEffect(() => {
     fetchWalletData()
   }, [user])
+
+  const handleWithdrawalRequest = async () => {
+    if (!user) return
+    try {
+      const { error } = await supabase.from("withdrawal_requests").insert([
+        { user_id: user.id, amount: walletData?.wallet_balance ?? 0, status: "pending" }
+      ])
+      if (error) throw error
+      toast.success("Withdrawal request submitted!")
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to submit withdrawal request.")
+    }
+  }
 
   if (loading) {
     return (
@@ -95,7 +118,7 @@ export default function WalletPage() {
               My Wallet
             </h1>
             <p className="text-slate-400 text-sm lg:text-base">
-              Manage your earnings, referrals, and withdrawals
+              View your earnings, referrals, convert ED to XAF, and request withdrawals
             </p>
           </div>
 
@@ -103,16 +126,36 @@ export default function WalletPage() {
             {/* Left Section */}
             <div className="xl:col-span-2 space-y-6 lg:space-y-8">
               <WalletBalance wallet={walletData?.wallet_balance ?? 0} />
-              <EarningsConverter walletBalance={walletData?.wallet_balance ?? 0} />
+              <EarningsConverter /> {/* Only once */}
               <TransactionHistory transactions={transactions} />
             </div>
 
             {/* Right Section */}
             <div className="space-y-6 lg:space-y-8">
-              <WithdrawalSection
-                walletBalance={walletData?.wallet_balance ?? 0}
-                onWithdraw={fetchWalletData}
-              />
+              {/* Withdrawal Section */}
+              <div className="p-6 bg-slate-800/30 rounded-xl">
+                <h3 className="font-bold text-cyan-400 text-lg mb-2">Withdrawals</h3>
+                <p className="text-slate-400 text-sm mb-4">
+                  Withdrawals are available once you’ve completed <b>1 month</b> on the platform.
+                  After that, you may submit a request anytime.
+                </p>
+                <button
+                  className={`w-full px-4 py-2 rounded-lg font-semibold ${
+                    canWithdraw
+                      ? "bg-cyan-500 hover:bg-cyan-600 text-white"
+                      : "bg-slate-600 text-slate-400 cursor-not-allowed"
+                  }`}
+                  onClick={handleWithdrawalRequest}
+                  disabled={!canWithdraw}
+                >
+                  Request Withdrawal
+                </button>
+                {!canWithdraw && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    Withdrawals will open automatically after your first month.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 

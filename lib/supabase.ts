@@ -15,6 +15,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Database types
 export interface User {
+  [x: string]: string
   id: string
   email: string
   full_name: string

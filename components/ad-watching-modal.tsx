@@ -7,7 +7,15 @@ import { Progress } from "@/components/ui/progress"
 import { Card, CardContent } from "@/components/ui/card"
 import { Play, Pause, CheckCircle, XCircle, Coins, Clock } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { authService, type AdReward } from "@/lib/auth"
+import { authService } from "@/lib/auth"
+
+// Define AdReward interface with all required properties
+export interface AdReward {
+  amount: number;
+  currency: string;
+  machineId: string;
+  sessionId: string;
+}
 
 interface AdWatchingModalProps {
   isOpen: boolean
@@ -17,8 +25,6 @@ interface AdWatchingModalProps {
   rewardAmount: number
   onRewardEarned: (reward: AdReward) => void
 }
-// Add this at the top if not already exported
-export type { AdReward } from "@/lib/admob-service"
 
 export function AdWatchingModal({ isOpen, onClose, machineId, machineName, rewardAmount, onRewardEarned }: AdWatchingModalProps) {
   const { user } = useAuth()
@@ -72,7 +78,12 @@ export function AdWatchingModal({ isOpen, onClose, machineId, machineName, rewar
       const result = await authService.watchAd(user.id, machineId, rewardAmount)
 
       if (result.success) {
-        const earnedReward = { amount: rewardAmount } as AdReward
+        const earnedReward: AdReward = { 
+          amount: rewardAmount,
+          currency: "ED",
+          machineId: machineId,
+          sessionId: `session_${Date.now()}`
+        }
         setReward(earnedReward)
         setAdState("completed")
         onRewardEarned(earnedReward)
