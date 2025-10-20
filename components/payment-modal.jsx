@@ -16,8 +16,8 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
   const validatePhone = (phoneNumber) => {
     if (!phoneNumber) return null
     
-    // Remove any spaces or special characters - ONLY digits
-    const cleanPhone = phoneNumber.replace(/\s+/g, '').replace(/[^\d]/g, '')
+    // Remove ALL spaces and special characters - ONLY digits
+    const cleanPhone = phoneNumber.replace(/\D/g, '') // Remove all non-digits
     
     console.log('🔧 Validating phone:', cleanPhone, 'Length:', cleanPhone.length)
     
@@ -47,10 +47,13 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
       return
     }
 
+    // Remove ALL spaces from the input before validation
+    const phoneWithoutSpaces = phone.replace(/\s/g, '')
+    
     // Validate phone
-    const validatedPhone = validatePhone(phone)
+    const validatedPhone = validatePhone(phoneWithoutSpaces)
     if (!validatedPhone) {
-      toast.error("Please enter a valid Cameroon number: 6XX XXX XXX (9 digits)")
+      toast.error("Please enter a valid 9-digit Cameroon number starting with 6")
       return
     }
 
@@ -69,7 +72,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           machineId: machine.id,
           userId: user.id,
           machineName: machine.name,
-          phone: validatedPhone, // Send the validated phone
+          phone: validatedPhone, // Send the validated phone (NO SPACES)
           medium: selectedMethod === "mobile_money" ? "mobile money" : "orange money",
           userEmail: user.email,
           userName: user.name || user.email?.split('@')[0] || 'Customer'
@@ -112,32 +115,10 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
 
   const handlePhoneChange = (value) => {
     // Remove all non-digits first
-    const cleanValue = value.replace(/\s+/g, '').replace(/[^\d]/g, '')
+    const cleanValue = value.replace(/\D/g, '')
     
-    // Auto-format as user types for better UX
-    if (cleanValue.startsWith('237')) {
-      // Format as 237 6XX XXX XXX
-      if (cleanValue.length <= 3) {
-        setPhone(cleanValue)
-      } else if (cleanValue.length <= 6) {
-        setPhone(`${cleanValue.slice(0, 3)} ${cleanValue.slice(3)}`)
-      } else if (cleanValue.length <= 9) {
-        setPhone(`${cleanValue.slice(0, 3)} ${cleanValue.slice(3, 6)} ${cleanValue.slice(6)}`)
-      } else {
-        setPhone(`${cleanValue.slice(0, 3)} ${cleanValue.slice(3, 6)} ${cleanValue.slice(6, 9)} ${cleanValue.slice(9, 12)}`)
-      }
-    } else if (cleanValue.startsWith('6')) {
-      // Format as 6XX XXX XXX (9 digits total)
-      if (cleanValue.length <= 3) {
-        setPhone(cleanValue)
-      } else if (cleanValue.length <= 6) {
-        setPhone(`${cleanValue.slice(0, 3)} ${cleanValue.slice(3)}`)
-      } else {
-        setPhone(`${cleanValue.slice(0, 3)} ${cleanValue.slice(3, 6)} ${cleanValue.slice(6, 9)}`)
-      }
-    } else {
-      setPhone(cleanValue)
-    }
+    // Set the phone state with ONLY digits (no spaces)
+    setPhone(cleanValue)
   }
 
   return (
@@ -156,7 +137,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
               <CheckCircle className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="font-semibold">Mobile Money Payment</p>
-                <p className="text-xs mt-1">Enter your 9-digit Cameroon number (6XX XXX XXX)</p>
+                <p className="text-xs mt-1">Enter your 9-digit Cameroon number (no spaces)</p>
               </div>
             </div>
           </div>
@@ -172,12 +153,13 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
                   value={phone}
                   onChange={(e) => handlePhoneChange(e.target.value)}
                   className="pl-10 bg-slate-800 border-slate-700 text-white"
-                  placeholder="6XX XXX XXX"
-                  maxLength={11} // 9 digits + 2 spaces
+                  placeholder="677123456"
+                  maxLength={9} // Only 9 digits allowed
+                  type="tel" // Better for phone numbers
                 />
               </div>
               <p className="text-xs text-slate-400">
-                Enter 9-digit Cameroon number starting with 6
+                Enter 9-digit number starting with 6 (no spaces)
               </p>
             </div>
 
@@ -221,7 +203,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           {/* Payment Button */}
           <Button
             onClick={handlePayment}
-            disabled={processing || !phone.trim()}
+            disabled={processing || phone.length !== 9}
             className="w-full font-semibold py-3 bg-green-500 hover:bg-green-600 disabled:bg-slate-600 disabled:cursor-not-allowed"
           >
             {processing ? (
@@ -238,7 +220,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           </Button>
 
           <div className="text-xs text-slate-400 text-center">
-            Enter 9-digit number starting with 6 • Machine activates after payment
+            Enter 9-digit number • No spaces needed • Machine activates after payment
           </div>
 
           <Button
