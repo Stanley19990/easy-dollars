@@ -6,6 +6,24 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Custom fetch with timeout and retry
+async function robustFetch(url: string, options: any, timeout = 15000) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error) {
+    clearTimeout(timeoutId)
+    throw error
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { 
@@ -19,12 +37,17 @@ export async function POST(request: NextRequest) {
       userName
     } = await request.json()
     
-    console.log('💰 Direct payment request:', { amount, machineId, phone, medium })
+    console.log('💰 Creating payment request:', { 
+      amount, 
+      machineId, 
+      userId,
+      phone: `***${phone?.slice(-3)}`
+    })
 
     // Generate unique external ID
     const externalId = `MACHINE_${machineId}_${userId}_${Date.now()}`
 
-    // Create Fapshi direct payment
+    // Create Fapshi payment using official /payment endpoint
     const fapshiPayload = {
       amount: Math.round(amount),
       phone: phone,
@@ -36,26 +59,40 @@ export async function POST(request: NextRequest) {
       message: `Purchase ${machineName} - EasyDollars`
     }
 
-    console.log('📤 Creating Fapshi direct payment:', fapshiPayload)
+    console.log('📤 Calling Fapshi /payment endpoint')
 
-    const response = await fetch('https://live.fapshi.com/direct-pay', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apiuser': process.env.FAPSHI_API_USER!,
-        'apikey': process.env.FAPSHI_API_KEY!
-      },
-      body: JSON.stringify(fapshiPayload)
+    let response;
+    try {
+      response = await robustFetch('https://live.fapshi.com/payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apiuser': process.env.FAPSHI_API_USER!,
+          'apikey': process.env.FAPSHI_API_KEY!
+        },
+        body: JSON.stringify(fapshiPayload)
+      }, 15000) // 15 second timeout
+    } catch (networkError: any) {
+      console.error('❌ Network error calling Fapshi:', networkError)
+      throw new Error('Cannot connect to payment service. Please try again in a few moments.')
+    }
+
+    let responseData;
+    try {
+      responseData = await response.json()
+    } catch (parseError) {
+      console.error('❌ Failed to parse Fapshi response:', parseError)
+      throw new Error('Payment service returned invalid response. Please try again.')
+    }
+
+    console.log('📨 Fapshi /payment response:', { 
+      status: response.status, 
+      data: responseData 
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      console.log('❌ Fapshi error:', errorData)
-      throw new Error(errorData.message || `Payment failed: ${response.status}`)
+      throw new Error(responseData.message || `Payment failed: ${response.status}`)
     }
-    
-    const data = await response.json()
-    console.log('✅ Fapshi direct payment created:', data)
 
     // Save pending transaction
     await supabase.from('transactions').insert({
@@ -66,17 +103,38 @@ export async function POST(request: NextRequest) {
       currency: 'XAF',
       status: 'pending',
       external_id: externalId,
-      fapshi_trans_id: data.transId
+      fapshi_trans_id: responseData.id || responseData.transId
     })
 
     return NextResponse.json({
       success: true,
       message: 'Payment request sent to your phone!',
-      transId: data.transId
+      paymentId: responseData.id || responseData.transId,
+      status: responseData.status
     })
 
   } catch (error: any) {
-    console.error('❌ Payment error:', error)
+    console.error('❌ Payment API error:', error)
+    
+    // Save failed transaction
+    try {
+      const { machineId, userId, machineName, amount } = await request.json()
+      const externalId = `MACHINE_${machineId}_${userId}_${Date.now()}`
+      
+      await supabase.from('transactions').insert({
+        user_id: userId,
+        type: 'machine_purchase',
+        description: `Purchase ${machineName} - ${externalId} (Failed)`,
+        amount: -amount,
+        currency: 'XAF',
+        status: 'failed',
+        external_id: externalId,
+        error_message: error.message
+      })
+    } catch (e) {
+      console.log('Could not save failed transaction')
+    }
+
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

@@ -11,35 +11,28 @@ export async function POST(request: NextRequest) {
     const webhookData = await request.json()
     console.log('📩 Fapshi Webhook Received:', webhookData)
 
-    const { transId, status, externalId, userId, amount } = webhookData
+    const { id, status, externalId, userId, amount } = webhookData
 
     // Update transaction status
     const { error: updateError } = await supabase
       .from('transactions')
       .update({ 
         status: status.toLowerCase(),
-        fapshi_trans_id: transId
+        fapshi_trans_id: id
       })
       .eq('external_id', externalId)
 
     if (updateError) {
       console.error('❌ Transaction update error:', updateError)
-      // Try without fapshi_trans_id as fallback
-      await supabase
-        .from('transactions')
-        .update({ 
-          status: status.toLowerCase()
-        })
-        .eq('external_id', externalId)
     }
 
     console.log('🔄 Payment Status:', status)
 
     // ONLY activate machine if payment is SUCCESSFUL
-    if (status.toLowerCase() === 'successful') {
+    if (status.toLowerCase() === 'successful' || status.toLowerCase() === 'completed') {
       await activateUserMachine(userId, externalId, amount)
     } else {
-      console.log('❌ Payment failed, machine not activated')
+      console.log('❌ Payment not successful, machine not activated. Status:', status)
     }
 
     console.log('✅ Webhook processed successfully')

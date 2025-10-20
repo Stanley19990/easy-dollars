@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CreditCard, Loader2, Phone, CheckCircle } from "lucide-react"
+import { CreditCard, Loader2, Phone, CheckCircle, WifiOff } from "lucide-react"
 import { toast } from "sonner"
 
 export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSuccess }) {
@@ -19,19 +19,24 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
     // Remove any spaces or special characters
     const cleanPhone = phoneNumber.replace(/\s+/g, '').replace(/[^\d]/g, '')
     
-    // Check if it's 9 digits (6XXXXXXXX) - convert to 237 format
-    if (cleanPhone.length === 9 && cleanPhone.startsWith('6')) {
-      return `237${cleanPhone}`
-    } 
-    // Check if it's 11 digits (2376XXXXXXXX) - use as is
-    else if (cleanPhone.length === 11 && cleanPhone.startsWith('2376')) {
+    console.log('🔧 Validating phone:', cleanPhone)
+    
+    // Fapshi accepts: 237XXXXXXXXX (11 digits) or 6XXXXXXXX (9 digits)
+    
+    // Format 1: 237XXXXXXXXX (11 digits)
+    if (cleanPhone.length === 11 && cleanPhone.startsWith('237')) {
       return cleanPhone
     }
-    // Check if it's 12 digits (2376XXXXXXXX) - sometimes happens
-    else if (cleanPhone.length === 12 && cleanPhone.startsWith('2376')) {
+    // Format 2: 6XXXXXXXX (9 digits) - convert to 237 format
+    else if (cleanPhone.length === 9 && cleanPhone.startsWith('6')) {
+      return `237${cleanPhone}`
+    }
+    // Format 3: Already valid (might be 12 digits with country code)
+    else if (cleanPhone.length === 12 && cleanPhone.startsWith('237')) {
       return cleanPhone
     }
     
+    console.log('❌ Invalid phone format:', cleanPhone)
     return null
   }
 
@@ -44,14 +49,18 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
     // Validate phone
     const validatedPhone = validatePhone(phone)
     if (!validatedPhone) {
-      toast.error("Please enter a valid Cameroon MTN or Orange number (6XXXXXXXX or 2376XXXXXXXX)")
+      toast.error("Please enter a valid Cameroon MTN or Orange number (6XX XXX XXX or 237 6XX XXX XXX)")
       return
     }
 
     setProcessing(true)
 
     try {
-      console.log('🚀 Initiating direct payment...', { phone: validatedPhone, method: selectedMethod })
+      console.log('🚀 Creating payment with:', { 
+        phone: validatedPhone, 
+        method: selectedMethod,
+        amount: machine.price 
+      })
 
       const response = await fetch('/api/payments/create', {
         method: 'POST',
@@ -71,10 +80,10 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
       })
 
       const data = await response.json()
-      console.log('📨 Payment response:', data)
+      console.log('📨 Payment API response:', data)
 
       if (!response.ok) {
-        throw new Error(data.error || 'Payment failed')
+        throw new Error(data.error || 'Payment creation failed')
       }
 
       toast.success("✅ Payment request sent to your phone!")
@@ -84,7 +93,21 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
 
     } catch (error) {
       console.error('❌ Payment error:', error)
-      toast.error("❌ " + error.message)
+      
+      // Handle specific error types
+      if (error.message.includes('fetch failed') || 
+          error.message.includes('network') || 
+          error.message.includes('connect') ||
+          error.message.includes('timeout')) {
+        toast.error(
+          <div className="flex items-center">
+            <WifiOff className="h-4 w-4 mr-2" />
+            Network error. Please check your connection and try again.
+          </div>
+        )
+      } else {
+        toast.error("❌ " + error.message)
+      }
     } finally {
       setProcessing(false)
     }
@@ -170,7 +193,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
                   onClick={() => setSelectedMethod("mobile_money")}
                   className={selectedMethod === "mobile_money" ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-700 hover:bg-slate-600"}
                 >
-                  MTN Mobile Money
+                  MTN
                 </Button>
                 <Button
                   type="button"
@@ -178,7 +201,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
                   onClick={() => setSelectedMethod("orange_money")}
                   className={selectedMethod === "orange_money" ? "bg-orange-600 hover:bg-orange-700" : "bg-slate-700 hover:bg-slate-600"}
                 >
-                  Orange Money
+                  Orange
                 </Button>
               </div>
             </div>
@@ -197,6 +220,17 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
             </div>
           </div>
 
+          {/* Network Warning */}
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded p-3">
+            <div className="flex items-start text-amber-300 text-sm">
+              <WifiOff className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-semibold">Temporary Network Issues</p>
+                <p className="text-xs mt-1">If payment fails, please try again in a few minutes</p>
+              </div>
+            </div>
+          </div>
+
           {/* Payment Button */}
           <Button
             onClick={handlePayment}
@@ -206,18 +240,18 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
             {processing ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Sending Payment...
+                Creating Payment...
               </>
             ) : (
               <>
-                <Phone className="h-4 w-4 mr-2" />
+                <CreditCard className="h-4 w-4 mr-2" />
                 Send Payment Request
               </>
             )}
           </Button>
 
           <div className="text-xs text-slate-400 text-center">
-            Payment request sent to your phone • Complete payment to activate machine
+            Secure payment • Machine activates after successful payment
           </div>
 
           <Button
