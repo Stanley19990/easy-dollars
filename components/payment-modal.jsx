@@ -16,24 +16,25 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
   const validatePhone = (phoneNumber) => {
     if (!phoneNumber) return null
     
-    // Remove any spaces or special characters
+    // Remove any spaces or special characters - ONLY digits
     const cleanPhone = phoneNumber.replace(/\s+/g, '').replace(/[^\d]/g, '')
     
-    console.log('🔧 Validating phone:', cleanPhone)
+    console.log('🔧 Validating phone:', cleanPhone, 'Length:', cleanPhone.length)
     
-    // Fapshi accepts: 237XXXXXXXXX (11 digits) or 6XXXXXXXX (9 digits)
+    // Fapshi expects EXACTLY: 2376XXXXXXXX (12 digits total)
+    // 237 (country code) + 6 (MTN/Orange) + 8 digits = 12 digits
     
-    // Format 1: 237XXXXXXXXX (11 digits)
-    if (cleanPhone.length === 11 && cleanPhone.startsWith('237')) {
+    // Check if it's exactly 12 digits starting with 2376
+    if (cleanPhone.length === 12 && cleanPhone.startsWith('2376')) {
       return cleanPhone
     }
-    // Format 2: 6XXXXXXXX (9 digits) - convert to 237 format
+    // Check if it's 9 digits starting with 6 - convert to 237 format
     else if (cleanPhone.length === 9 && cleanPhone.startsWith('6')) {
       return `237${cleanPhone}`
     }
-    // Format 3: Already valid (might be 12 digits with country code)
-    else if (cleanPhone.length === 12 && cleanPhone.startsWith('237')) {
-      return cleanPhone
+    // Check if it's 11 digits starting with 2376 - might be missing one digit
+    else if (cleanPhone.length === 11 && cleanPhone.startsWith('2376')) {
+      return `${cleanPhone}0` // Add missing digit
     }
     
     console.log('❌ Invalid phone format:', cleanPhone)
@@ -49,19 +50,15 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
     // Validate phone
     const validatedPhone = validatePhone(phone)
     if (!validatedPhone) {
-      toast.error("Please enter a valid Cameroon MTN or Orange number (6XX XXX XXX or 237 6XX XXX XXX)")
+      toast.error("Please enter a valid Cameroon number: 6XX XXX XXX (9 digits)")
       return
     }
+
+    console.log('🚀 Sending phone to API:', validatedPhone)
 
     setProcessing(true)
 
     try {
-      console.log('🚀 Creating payment with:', { 
-        phone: validatedPhone, 
-        method: selectedMethod,
-        amount: machine.price 
-      })
-
       const response = await fetch('/api/payments/create', {
         method: 'POST',
         headers: {
@@ -72,7 +69,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           machineId: machine.id,
           userId: user.id,
           machineName: machine.name,
-          phone: validatedPhone,
+          phone: validatedPhone, // Send the validated phone
           medium: selectedMethod === "mobile_money" ? "mobile money" : "orange money",
           userEmail: user.email,
           userName: user.name || user.email?.split('@')[0] || 'Customer'
@@ -114,9 +111,10 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
   }
 
   const handlePhoneChange = (value) => {
-    // Auto-format as user types
+    // Remove all non-digits first
     const cleanValue = value.replace(/\s+/g, '').replace(/[^\d]/g, '')
     
+    // Auto-format as user types for better UX
     if (cleanValue.startsWith('237')) {
       // Format as 237 6XX XXX XXX
       if (cleanValue.length <= 3) {
@@ -129,7 +127,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
         setPhone(`${cleanValue.slice(0, 3)} ${cleanValue.slice(3, 6)} ${cleanValue.slice(6, 9)} ${cleanValue.slice(9, 12)}`)
       }
     } else if (cleanValue.startsWith('6')) {
-      // Format as 6XX XXX XXX
+      // Format as 6XX XXX XXX (9 digits total)
       if (cleanValue.length <= 3) {
         setPhone(cleanValue)
       } else if (cleanValue.length <= 6) {
@@ -138,7 +136,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
         setPhone(`${cleanValue.slice(0, 3)} ${cleanValue.slice(3, 6)} ${cleanValue.slice(6, 9)}`)
       }
     } else {
-      setPhone(value)
+      setPhone(cleanValue)
     }
   }
 
@@ -158,7 +156,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
               <CheckCircle className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="font-semibold">Mobile Money Payment</p>
-                <p className="text-xs mt-1">Payment request will be sent directly to your phone</p>
+                <p className="text-xs mt-1">Enter your 9-digit Cameroon number (6XX XXX XXX)</p>
               </div>
             </div>
           </div>
@@ -174,12 +172,12 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
                   value={phone}
                   onChange={(e) => handlePhoneChange(e.target.value)}
                   className="pl-10 bg-slate-800 border-slate-700 text-white"
-                  placeholder="6XX XXX XXX or 237 6XX XXX XXX"
-                  maxLength={14}
+                  placeholder="6XX XXX XXX"
+                  maxLength={11} // 9 digits + 2 spaces
                 />
               </div>
               <p className="text-xs text-slate-400">
-                Enter your Cameroon MTN or Orange number
+                Enter 9-digit Cameroon number starting with 6
               </p>
             </div>
 
@@ -220,17 +218,6 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
             </div>
           </div>
 
-          {/* Network Warning */}
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded p-3">
-            <div className="flex items-start text-amber-300 text-sm">
-              <WifiOff className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-semibold">Temporary Network Issues</p>
-                <p className="text-xs mt-1">If payment fails, please try again in a few minutes</p>
-              </div>
-            </div>
-          </div>
-
           {/* Payment Button */}
           <Button
             onClick={handlePayment}
@@ -251,7 +238,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           </Button>
 
           <div className="text-xs text-slate-400 text-center">
-            Secure payment • Machine activates after successful payment
+            Enter 9-digit number starting with 6 • Machine activates after payment
           </div>
 
           <Button

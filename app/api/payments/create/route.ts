@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       amount, 
       machineId, 
       userId,
-      phone: `***${phone?.slice(-3)}`
+      phone: phone // Log the exact phone being sent
     })
 
     // Generate unique external ID
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     // Create Fapshi payment using official /payment endpoint
     const fapshiPayload = {
       amount: Math.round(amount),
-      phone: phone,
+      phone: phone, // Send exactly as provided
       medium: medium, // "mobile money" or "orange money"
       name: userName || "Customer",
       email: userEmail || "customer@easydollars.com",
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       message: `Purchase ${machineName} - EasyDollars`
     }
 
-    console.log('📤 Calling Fapshi /payment endpoint')
+    console.log('📤 Calling Fapshi /payment endpoint with payload:', fapshiPayload)
 
     let response;
     try {
