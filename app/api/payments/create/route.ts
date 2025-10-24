@@ -6,24 +6,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Custom fetch with timeout and retry
-async function robustFetch(url: string, options: any, timeout = 15000) {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeout)
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal
-    })
-    clearTimeout(timeoutId)
-    return response
-  } catch (error) {
-    clearTimeout(timeoutId)
-    throw error
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
     const { 
@@ -37,84 +19,72 @@ export async function POST(request: NextRequest) {
       userName
     } = await request.json()
     
-    console.log('💰 Creating payment request:', { 
+    console.log('🧪 SANDBOX Payment request:', { 
       amount, 
       machineId, 
       userId,
-      phone: phone // Log the exact phone being sent
+      phone: phone
     })
 
     // Generate unique external ID
     const externalId = `MACHINE_${machineId}_${userId}_${Date.now()}`
 
-    // Create Fapshi payment using official /payment endpoint
+    // SANDBOX: Use EXACT format from their example - 9 digits, no 237 prefix
     const fapshiPayload = {
       amount: Math.round(amount),
-      phone: phone, // Send exactly as provided
+      phone: phone, // Send as 9 digits (693837891) - NO 237 prefix for sandbox
       medium: medium, // "mobile money" or "orange money"
-      name: userName || "Customer",
-      email: userEmail || "customer@easydollars.com",
+      name: userName || "Test User",
+      email: userEmail || "test@easydollars.com",
       userId: userId,
       externalId: externalId,
-      message: `Purchase ${machineName} - EasyDollars`
+      message: `Purchase ${machineName} - EasyDollars Sandbox`
     }
 
-    console.log('📤 Calling Fapshi /payment endpoint with payload:', fapshiPayload)
+    console.log('📤 Calling SANDBOX with exact format:', fapshiPayload)
 
-    let response;
-    try {
-      response = await robustFetch('https://live.fapshi.com/payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apiuser': process.env.FAPSHI_API_USER!,
-          'apikey': process.env.FAPSHI_API_KEY!
-        },
-        body: JSON.stringify(fapshiPayload)
-      }, 15000) // 15 second timeout
-    } catch (networkError: any) {
-      console.error('❌ Network error calling Fapshi:', networkError)
-      throw new Error('Cannot connect to payment service. Please try again in a few moments.')
-    }
+    const response = await fetch('https://sandbox.fapshi.com/direct-pay', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apiuser': process.env.FAPSHI_API_USER!,
+        'apikey': process.env.FAPSHI_API_KEY!
+      },
+      body: JSON.stringify(fapshiPayload)
+    })
 
-    let responseData;
-    try {
-      responseData = await response.json()
-    } catch (parseError) {
-      console.error('❌ Failed to parse Fapshi response:', parseError)
-      throw new Error('Payment service returned invalid response. Please try again.')
-    }
-
-    console.log('📨 Fapshi /payment response:', { 
+    const responseData = await response.json()
+    console.log('📨 SANDBOX Response:', { 
       status: response.status, 
       data: responseData 
     })
 
     if (!response.ok) {
-      throw new Error(responseData.message || `Payment failed: ${response.status}`)
+      throw new Error(responseData.message || `Sandbox payment failed: ${response.status}`)
     }
 
     // Save pending transaction
     await supabase.from('transactions').insert({
       user_id: userId,
       type: 'machine_purchase',
-      description: `Purchase ${machineName} - ${externalId}`,
+      description: `Purchase ${machineName} - ${externalId} (SANDBOX)`,
       amount: -amount,
       currency: 'XAF',
       status: 'pending',
       external_id: externalId,
-      fapshi_trans_id: responseData.id || responseData.transId
+      fapshi_trans_id: responseData.transId,
+      is_test: true
     })
 
     return NextResponse.json({
       success: true,
-      message: 'Payment request sent to your phone!',
-      paymentId: responseData.id || responseData.transId,
-      status: responseData.status
+      message: 'SANDBOX: Payment request sent to your phone!',
+      transId: responseData.transId,
+      isSandbox: true
     })
 
   } catch (error: any) {
-    console.error('❌ Payment API error:', error)
+    console.error('❌ SANDBOX Payment error:', error)
     
     // Save failed transaction
     try {
@@ -124,12 +94,13 @@ export async function POST(request: NextRequest) {
       await supabase.from('transactions').insert({
         user_id: userId,
         type: 'machine_purchase',
-        description: `Purchase ${machineName} - ${externalId} (Failed)`,
+        description: `Purchase ${machineName} - ${externalId} (SANDBOX Failed)`,
         amount: -amount,
         currency: 'XAF',
         status: 'failed',
         external_id: externalId,
-        error_message: error.message
+        error_message: error.message,
+        is_test: true
       })
     } catch (e) {
       console.log('Could not save failed transaction')

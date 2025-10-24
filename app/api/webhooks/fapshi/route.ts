@@ -17,8 +17,7 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase
       .from('transactions')
       .update({ 
-        status: status.toLowerCase(),
-        fapshi_trans_id: id
+        status: status.toLowerCase()
       })
       .eq('external_id', externalId)
 
@@ -28,11 +27,9 @@ export async function POST(request: NextRequest) {
 
     console.log('🔄 Payment Status:', status)
 
-    // ONLY activate machine if payment is SUCCESSFUL
-    if (status.toLowerCase() === 'successful' || status.toLowerCase() === 'completed') {
+    // Activate machine if payment successful
+    if (status.toLowerCase() === 'successful') {
       await activateUserMachine(userId, externalId, amount)
-    } else {
-      console.log('❌ Payment not successful, machine not activated. Status:', status)
     }
 
     console.log('✅ Webhook processed successfully')
@@ -46,7 +43,6 @@ export async function POST(request: NextRequest) {
 
 async function activateUserMachine(userId: string, externalId: string, amount: number) {
   try {
-    // Parse machine ID from externalId (format: MACHINE_{machineId}_{userId}_{timestamp})
     const parts = externalId.split('_')
     if (parts.length < 3) {
       console.log('❌ Invalid externalId format:', externalId)
@@ -55,7 +51,7 @@ async function activateUserMachine(userId: string, externalId: string, amount: n
     
     const machineId = parts[1]
 
-    console.log('🔧 Activating machine from webhook:', { userId, machineId, externalId, amount })
+    console.log('🔧 Activating machine from webhook:', { userId, machineId })
 
     // Check if machine already activated
     const { data: existingMachine } = await supabase
