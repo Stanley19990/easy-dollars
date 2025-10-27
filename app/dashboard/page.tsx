@@ -12,6 +12,7 @@ import { FloatingParticles } from "@/components/floating-particles"
 import { Toaster, toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
+import { NotificationBell } from '@/components/notification-bell'
 
 // Define types to fix TypeScript errors
 interface ReferredUser {
@@ -388,6 +389,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-950 relative overflow-hidden">
       <FloatingParticles />
+<NotificationBell />
 
       <div className="relative z-10">
         <DashboardHeader />

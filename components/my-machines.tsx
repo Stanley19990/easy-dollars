@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
+import { useMiningState } from "@/hooks/use-mining-state"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Zap, Play, Cpu, BarChart3, DollarSign, Image as ImageIcon, Timer, CheckCircle, Clock, TrendingUp } from "lucide-react"
-import { AdWatchingModal, type AdReward } from "@/components/ad-watching-modal"
+import { Zap, Play, Cpu, BarChart3, DollarSign, Image as ImageIcon, Timer, CheckCircle, Clock, TrendingUp, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 
@@ -17,6 +17,7 @@ interface UserMachine {
   is_active: boolean
   activated_at?: string
   last_claim_time?: string
+  total_earned: number
   machine_types: {
     name: string
     price: number
@@ -27,58 +28,51 @@ interface UserMachine {
     image_url: string
   }
 }
+interface MiningMachine {
+  isActive: boolean;
+  lastClaim: string | null;
+  activatedAt: string | null;
+  dailyEarnings: number;
+  name: string;
+  image: string | null;
+  canClaim: boolean;
+  progress: number;
+  hoursRemaining: number;
+  timeRemaining: string;
+}
 
+interface MyMachinesProps {
+  onWatchAd?: (machineId: string, machineName: string) => void;
+}
+
+// ADD THIS: Define the props interface
 interface MyMachinesProps {
   onWatchAd?: (machineId: string, machineName: string) => void;
   onActivateMachine?: (machineId: string) => void;
   onClaimEarnings?: (machineId: string) => void;
-  miningMachines?: Record<string, any>;
+  miningMachines?: Record<string, MiningMachine>;
   activatingMachine?: string | null;
   claimingMachine?: string | null;
 }
 
-export function MyMachines({ 
-  onWatchAd, 
-  onActivateMachine, 
-  onClaimEarnings, 
-  miningMachines = {}, 
-  activatingMachine = null, 
-  claimingMachine = null 
-}: MyMachinesProps) {
+export function MyMachines({ onWatchAd }: MyMachinesProps) {
   const { user } = useAuth()
+  const {
+    miningStates,
+    localClaiming,
+    initializeMachineState,
+    activateMachine,
+    claimEarnings
+  } = useMiningState()
+  
   const [adModalOpen, setAdModalOpen] = useState(false)
   const [selectedMachine, setSelectedMachine] = useState<{ id: string; name: string } | null>(null)
   const [userMachines, setUserMachines] = useState<UserMachine[]>([])
   const [loading, setLoading] = useState(true)
-  
-  // LOCAL mining state - works immediately without API
-  const [localMiningStates, setLocalMiningStates] = useState<Record<string, any>>({})
-  const hasResumedMining = useRef(false) // Track if we've already resumed mining
 
   useEffect(() => {
     loadUserMachines()
   }, [user])
-
-  // Load mining states from localStorage on component mount
-  useEffect(() => {
-    if (user) {
-      const savedStates = localStorage.getItem(`miningStates_${user.id}`)
-      if (savedStates) {
-        const parsedStates = JSON.parse(savedStates)
-        setLocalMiningStates(parsedStates)
-        
-        // Resume mining progress for active machines
-        resumeMiningProgress(parsedStates)
-      }
-    }
-  }, [user])
-
-  // Save mining states to localStorage whenever they change
-  useEffect(() => {
-    if (user && Object.keys(localMiningStates).length > 0) {
-      localStorage.setItem(`miningStates_${user.id}`, JSON.stringify(localMiningStates))
-    }
-  }, [localMiningStates, user])
 
   const loadUserMachines = async () => {
     if (!user) return
@@ -93,6 +87,7 @@ export function MyMachines({
           is_active,
           activated_at,
           last_claim_time,
+          total_earned,
           machine_types (
             name,
             price,
@@ -110,25 +105,23 @@ export function MyMachines({
       
       const machinesWithDetails = (data || []).map(machine => ({
         ...machine,
-        machine_types: Array.isArray(machine.machine_types) ? machine.machine_types[0] : machine.machine_types
+        machine_types: Array.isArray(machine.machine_types) ? machine.machine_types[0] : machine.machine_types,
+        total_earned: machine.total_earned || 0
       }))
       
       setUserMachines(machinesWithDetails)
       
-      // Initialize local mining states only if not already loaded from localStorage
-      if (Object.keys(localMiningStates).length === 0) {
-        const initialStates: Record<string, any> = {}
-        machinesWithDetails.forEach(machine => {
-          initialStates[machine.machine_type_id] = {
-            isActive: false,
-            startTime: null,
-            progress: 0,
-            timeRemaining: '24h 0m',
-            canClaim: false
-          }
-        })
-        setLocalMiningStates(initialStates)
-      }
+      // Initialize mining states for all user machines
+      machinesWithDetails.forEach(machine => {
+        const isNewMachine = !machine.last_claim_time && !machine.activated_at
+        if (!miningStates[machine.machine_type_id]) {
+          initializeMachineState(
+            machine.machine_type_id, 
+            machine.total_earned || 0, 
+            isNewMachine
+          )
+        }
+      })
       
     } catch (error) {
       console.error("Failed to load user machines:", error)
@@ -138,144 +131,27 @@ export function MyMachines({
     }
   }
 
-  // Resume mining progress for machines that were mining before page reload
-  const resumeMiningProgress = (states: Record<string, any>) => {
-    if (hasResumedMining.current) return // Prevent multiple calls
-    hasResumedMining.current = true
-
-    Object.entries(states).forEach(([machineId, state]) => {
-      if (state.isActive && state.startTime && state.progress < 100) {
-        const startTime = state.startTime
-        const now = new Date().getTime()
-        const elapsed = now - startTime
-        
-        // If mining period hasn't expired, resume progress
-        if (elapsed < 24 * 60 * 60 * 1000) {
-          startMiningProgress(machineId, startTime)
-        } else {
-          // Mining completed while page was closed
-          setLocalMiningStates(prev => ({
-            ...prev,
-            [machineId]: {
-              ...prev[machineId],
-              isActive: false,
-              progress: 100,
-              timeRemaining: '0h 0m',
-              canClaim: true
-            }
-          }))
-        }
-      }
-    })
-  }
-
-  // SIMPLE mining activation - works immediately
-  const handleActivate = async (machineId: string) => {
+  const handleActivate = (machineId: string) => {
     console.log('🚀 Activating machine:', machineId)
-    
-    const startTime = new Date().getTime()
-    
-    // Update local state immediately
-    setLocalMiningStates(prev => ({
-      ...prev,
-      [machineId]: {
-        isActive: true,
-        startTime: startTime,
-        progress: 0,
-        timeRemaining: '23h 59m',
-        canClaim: false
-      }
-    }))
-    
+    activateMachine(machineId)
     toast.success('Machine activated! 🚀 Mining started...')
-    
-    // Start progress simulation
-    startMiningProgress(machineId, startTime)
-    
-    // Try API in background (optional) - but don't wait for it
-    if (onActivateMachine) {
-      try {
-        await onActivateMachine(machineId)
-      } catch (error) {
-        console.log('API call failed, but local mining works')
-      }
-    } else {
-      // If no onActivateMachine prop, try direct API call
-      try {
-        await fetch('/api/machines/activate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user?.id, machineId })
-        })
-      } catch (error) {
-        console.log('Direct API call also failed, but local mining works')
-      }
-    }
   }
 
-  // SIMPLE mining progress simulation with persistence
-  const startMiningProgress = (machineId: string, startTime: number) => {
-    const totalMiningTime = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
-    
-    const updateProgress = () => {
-      const now = new Date().getTime()
-      const elapsed = now - startTime
-      const progress = Math.min((elapsed / totalMiningTime) * 100, 100)
-      const remainingMs = Math.max(totalMiningTime - elapsed, 0)
-      
-      // Calculate remaining time
-      const hours = Math.floor(remainingMs / (1000 * 60 * 60))
-      const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
-      
-      const newState = {
-        isActive: progress < 100,
-        startTime: startTime,
-        progress: progress,
-        timeRemaining: `${hours}h ${minutes}m`,
-        canClaim: progress >= 100
-      }
-      
-      setLocalMiningStates(prev => ({
-        ...prev,
-        [machineId]: newState
-      }))
-      
-      // Continue updating if not complete
-      if (progress < 100) {
-        setTimeout(updateProgress, 1000) // Update every second
-      }
-    }
-    
-    // Start the progress updates
-    updateProgress()
-  }
-
-  // SIMPLE claim function
   const handleClaim = async (machineId: string) => {
-    const machine = userMachines.find(m => m.machine_type_id === machineId)
-    const dailyEarnings = machine?.machine_types.daily_earnings || 0
-    
-    toast.success(`💰 Claimed ${dailyEarnings.toLocaleString()} XAF!`)
-    
-    // Reset mining state
-    setLocalMiningStates(prev => ({
-      ...prev,
-      [machineId]: {
-        isActive: false,
-        startTime: null,
-        progress: 0,
-        timeRemaining: '24h 0m',
-        canClaim: false
+    try {
+      const machine = userMachines.find(m => m.machine_type_id === machineId)
+      if (!machine) {
+        toast.error('Machine not found')
+        return
       }
-    }))
-    
-    // Try API in background (optional)
-    if (onClaimEarnings) {
-      try {
-        await onClaimEarnings(machineId)
-      } catch (error) {
-        console.log('API claim failed, but local claim worked')
-      }
+
+      const dailyEarnings = machine.machine_types.daily_earnings || 100
+      await claimEarnings(machineId, dailyEarnings)
+      toast.success(`💰 Successfully claimed ${dailyEarnings.toLocaleString()} XAF!`)
+      
+    } catch (error) {
+      console.error('Claim error:', error)
+      toast.error('Failed to claim earnings')
     }
   }
 
@@ -288,10 +164,6 @@ export function MyMachines({
     }
   }
 
-  const handleRewardEarned = (reward: AdReward) => {
-    toast.success(`Earned ${reward.amount.toFixed(2)} ED from ${selectedMachine?.name}!`)
-    loadUserMachines()
-  }
 
   const getGradientClass = (machineId: string) => {
     const gradients: Record<string, string> = {
@@ -311,6 +183,26 @@ export function MyMachines({
     const icons = [Zap, Cpu, BarChart3, DollarSign, Zap, Cpu, BarChart3, DollarSign]
     const IconComponent = icons[index % icons.length]
     return <IconComponent className="h-6 w-6 text-white" />
+  }
+
+  // Calculate available earnings for display
+  const getAvailableEarnings = (machineId: string) => {
+    const miningState = miningStates[machineId]
+    const machine = userMachines.find(m => m.machine_type_id === machineId)
+    
+    if (!miningState || !machine) return 0
+    
+    // New machines show 0 until activated
+    if (miningState.isNewMachine) {
+      return 0
+    }
+    
+    // Only show earnings when mining is complete
+    if (miningState.canClaim) {
+      return machine.machine_types.daily_earnings
+    }
+    
+    return 0
   }
 
   if (loading) {
@@ -360,13 +252,17 @@ export function MyMachines({
                 const machineData = machine.machine_types
                 const gradientClass = getGradientClass(machine.machine_type_id)
                 
-                // Use LOCAL mining state (works immediately)
-                const miningState = localMiningStates[machine.machine_type_id] || {
+                const miningState = miningStates[machine.machine_type_id] || {
                   isActive: false,
                   progress: 0,
                   timeRemaining: '24h 0m',
-                  canClaim: false
+                  canClaim: false,
+                  totalEarned: 0,
+                  isNewMachine: true
                 }
+
+                const availableEarnings = getAvailableEarnings(machine.machine_type_id)
+                const isClaiming = localClaiming === machine.machine_type_id
 
                 return (
                   <Card
@@ -392,6 +288,11 @@ export function MyMachines({
                             <Badge variant="default" className="bg-blue-500/10 text-blue-300 border-blue-500/20 px-3 py-1">
                               <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse mr-2"></div>
                               Mining Active
+                            </Badge>
+                          ) : miningState.isNewMachine ? (
+                            <Badge variant="default" className="bg-purple-500/10 text-purple-300 border-purple-500/20 px-3 py-1">
+                              <Zap className="h-3 w-3 mr-1" />
+                              New Machine
                             </Badge>
                           ) : (
                             <Badge variant="default" className="bg-amber-500/10 text-amber-300 border-amber-500/20 px-3 py-1">
@@ -427,7 +328,7 @@ export function MyMachines({
                           </div>
                         )}
                         
-                        {/* Mining Progress Overlay - NOW WORKING! */}
+                        {/* Mining Progress Overlay */}
                         {miningState.isActive && (
                           <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-3">
                             <div className="flex items-center justify-between text-sm text-white mb-2">
@@ -449,23 +350,23 @@ export function MyMachines({
 
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                         <div className="bg-slate-700/30 rounded-lg p-4 text-center">
-                          <div className="text-xs text-slate-400 mb-1">Daily Earning</div>
+                          <div className="text-xs text-slate-400 mb-1">Available Now</div>
                           <div className="text-lg font-bold text-green-400">
+                            {availableEarnings.toLocaleString()} XAF
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-700/30 rounded-lg p-4 text-center">
+                          <div className="text-xs text-slate-400 mb-1">Daily Rate</div>
+                          <div className="text-lg font-bold text-amber-400">
                             {machineData.daily_earnings?.toLocaleString() || '0'} XAF
                           </div>
                         </div>
 
                         <div className="bg-slate-700/30 rounded-lg p-4 text-center">
-                          <div className="text-xs text-slate-400 mb-1">Monthly Potential</div>
-                          <div className="text-lg font-bold text-amber-400">
-                            {machineData.monthly_earnings?.toLocaleString() || '0'} XAF
-                          </div>
-                        </div>
-
-                        <div className="bg-slate-700/30 rounded-lg p-4 text-center">
-                          <div className="text-xs text-slate-400 mb-1">Machine Value</div>
-                          <div className="text-lg font-bold text-cyan-400">
-                            {machineData.price?.toLocaleString() || '0'} XAF
+                          <div className="text-xs text-slate-400 mb-1">Total Earned</div>
+                          <div className="text-lg font-bold text-yellow-400">
+                            {miningState.totalEarned.toLocaleString()} XAF
                           </div>
                         </div>
 
@@ -473,23 +374,36 @@ export function MyMachines({
                           <div className="text-xs text-slate-400 mb-1">Status</div>
                           <div className={`text-lg font-bold ${
                             miningState.canClaim ? 'text-green-400' : 
-                            miningState.isActive ? 'text-blue-400' : 'text-purple-400'
+                            miningState.isActive ? 'text-blue-400' : 
+                            miningState.isNewMachine ? 'text-purple-400' : 'text-amber-400'
                           }`}>
-                            {miningState.canClaim ? 'Ready!' : miningState.isActive ? 'Mining' : 'Ready to Start'}
+                            {miningState.canClaim ? 'Ready!' : 
+                             miningState.isActive ? 'Mining' : 
+                             miningState.isNewMachine ? 'New' : 'Ready to Start'}
                           </div>
                         </div>
                       </div>
 
-                      {/* Mining Action Buttons - NOW WORKING! */}
+                      {/* Mining Action Buttons */}
                       <div className="pt-4 border-t border-slate-700 space-y-3">
                         {miningState.canClaim ? (
                           <Button
                             size="lg"
                             onClick={() => handleClaim(machine.machine_type_id)}
+                            disabled={isClaiming}
                             className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 font-bold text-lg py-4 shadow-lg"
                           >
-                            <CheckCircle className="h-5 w-5 mr-2" />
-                            Claim {machineData.daily_earnings?.toLocaleString() || '0'} XAF
+                            {isClaiming ? (
+                              <>
+                                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                Claiming...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-5 w-5 mr-2" />
+                                Claim {availableEarnings.toLocaleString()} XAF
+                              </>
+                            )}
                           </Button>
                         ) : miningState.isActive ? (
                           <Button
@@ -504,17 +418,10 @@ export function MyMachines({
                           <Button
                             size="lg"
                             onClick={() => handleActivate(machine.machine_type_id)}
-                            disabled={activatingMachine === machine.machine_type_id}
                             className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 font-bold text-lg py-4 shadow-lg"
                           >
-                            {activatingMachine === machine.machine_type_id ? (
-                              "🔄 Activating..."
-                            ) : (
-                              <>
-                                <Zap className="h-5 w-5 mr-2" />
-                                Start Mining
-                              </>
-                            )}
+                            <Zap className="h-5 w-5 mr-2" />
+                            Start Mining
                           </Button>
                         )}
 
@@ -546,9 +453,12 @@ export function MyMachines({
                         <div className="text-cyan-400 font-bold text-2xl">{userMachines.length}</div>
                       </div>
                       <div>
-                        <div className="text-slate-400 text-sm">Daily Potential</div>
+                        <div className="text-slate-400 text-sm">Total Earned</div>
                         <div className="text-green-400 font-bold text-2xl">
-                          {userMachines.reduce((sum, m) => sum + (m.machine_types.daily_earnings || 0), 0).toLocaleString()} XAF
+                          {userMachines.reduce((sum, m) => {
+                            const miningState = miningStates[m.machine_type_id]
+                            return sum + (miningState?.totalEarned || 0)
+                          }, 0).toLocaleString()} XAF
                         </div>
                       </div>
                     </div>
@@ -560,16 +470,6 @@ export function MyMachines({
         </CardContent>
       </Card>
 
-      {selectedMachine && (
-        <AdWatchingModal
-          isOpen={adModalOpen}
-          onClose={() => { setAdModalOpen(false); setSelectedMachine(null) }}
-          machineId={selectedMachine.id}
-          machineName={selectedMachine.name}
-          rewardAmount={0.5}
-          onRewardEarned={handleRewardEarned}
-        />
-      )}
     </>
   )
 }

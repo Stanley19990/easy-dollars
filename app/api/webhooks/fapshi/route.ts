@@ -11,28 +11,28 @@ export async function POST(request: NextRequest) {
     const webhookData = await request.json()
     console.log('📩 Fapshi Webhook Received:', webhookData)
 
-    const { id, status, externalId, userId, amount } = webhookData
+    const { transId, status, externalId, userId, amount } = webhookData
 
-    // Update transaction status
+    // Update transaction status in database
     const { error: updateError } = await supabase
       .from('transactions')
       .update({ 
-        status: status.toLowerCase()
+        status: status.toLowerCase(),
+        updated_at: new Date().toISOString()
       })
-      .eq('external_id', externalId)
+      .eq('fapshi_trans_id', transId)
 
     if (updateError) {
       console.error('❌ Transaction update error:', updateError)
     }
 
-    console.log('🔄 Payment Status:', status)
+    console.log('🔄 Payment Status Updated:', { transId, status })
 
-    // Activate machine if payment successful
+    // Activate machine if payment is successful
     if (status.toLowerCase() === 'successful') {
-      await activateUserMachine(userId, externalId, amount)
+      await activateUserMachine(userId, externalId)
     }
 
-    console.log('✅ Webhook processed successfully')
     return NextResponse.json({ received: true })
 
   } catch (error: any) {
@@ -41,17 +41,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function activateUserMachine(userId: string, externalId: string, amount: number) {
+async function activateUserMachine(userId: string, externalId: string) {
   try {
+    // Extract machine ID from externalId
     const parts = externalId.split('_')
-    if (parts.length < 3) {
-      console.log('❌ Invalid externalId format:', externalId)
-      return
-    }
+    if (parts.length < 3) return
     
     const machineId = parts[1]
 
-    console.log('🔧 Activating machine from webhook:', { userId, machineId })
+    console.log('🔧 Activating machine:', { userId, machineId })
 
     // Check if machine already activated
     const { data: existingMachine } = await supabase
@@ -85,7 +83,7 @@ async function activateUserMachine(userId: string, externalId: string, amount: n
       return
     }
 
-    console.log('✅ Machine activated from webhook:', userMachine.id)
+    console.log('✅ Machine activated:', userMachine.id)
 
   } catch (error) {
     console.error('❌ Activation error:', error)

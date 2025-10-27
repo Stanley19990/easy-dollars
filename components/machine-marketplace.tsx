@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
+import { useMiningState } from "@/hooks/use-mining-state"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Zap, TrendingUp, Star, Clock, DollarSign, Cpu, Play, BarChart3, Calendar, Image as ImageIcon, Timer, CheckCircle } from "lucide-react"
+import { ShoppingCart, Zap, TrendingUp, Star, Clock, DollarSign, Cpu, Play, BarChart3, Calendar, Image as ImageIcon, Timer, CheckCircle, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { PaymentModal } from "@/components/payment-modal"
 import { supabase } from "@/lib/supabase"
@@ -22,7 +23,6 @@ interface MachineType {
   is_available: boolean
   gradient: string
   image_url?: string
-  // Database field names (these might be different)
   daily_earnings?: number
   monthly_earnings?: number
 }
@@ -42,6 +42,11 @@ interface MiningMachine {
 
 interface MachineMarketplaceProps {
   onWatchAd?: (machineId: string, machineName: string) => void;
+}
+
+// ADD THIS: Define the props interface
+interface MachineMarketplaceProps {
+  onWatchAd?: (machineId: string, machineName: string) => void;
   onActivateMachine?: (machineId: string) => void;
   onClaimEarnings?: (machineId: string) => void;
   miningMachines?: Record<string, MiningMachine>;
@@ -49,15 +54,16 @@ interface MachineMarketplaceProps {
   claimingMachine?: string | null;
 }
 
-export function MachineMarketplace({ 
-  onWatchAd, 
-  onActivateMachine, 
-  onClaimEarnings, 
-  miningMachines = {}, 
-  activatingMachine = null, 
-  claimingMachine = null 
-}: MachineMarketplaceProps) {
+export function MachineMarketplace({ onWatchAd }: MachineMarketplaceProps) {
   const { user, refreshUser } = useAuth()
+  const {
+    miningStates,
+    localClaiming,
+    initializeMachineState,
+    activateMachine,
+    claimEarnings
+  } = useMiningState()
+  
   const [purchasing, setPurchasing] = useState<string | null>(null)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [selectedMachine, setSelectedMachine] = useState<MachineType | null>(null)
@@ -66,49 +72,48 @@ export function MachineMarketplace({
   const [userMachines, setUserMachines] = useState<any[]>([])
 
   // Fetch machines from database including image URLs
-const fetchMachinesFromDatabase = async () => {
-  try {
-    console.log('🔍 Fetching machines from database...')
-    
-    const { data, error } = await supabase
-      .from('machine_types')
-      .select('*')
-      .order('id')
-
-    if (error) {
-      console.error('❌ Database fetch error:', error)
-      throw error
-    }
-    
-    console.log('✅ Machines from database:', data?.map(m => ({ id: m.id, name: m.name, typeOfId: typeof m.id })))
-    
-    if (data && data.length > 0) {
-      setDatabaseMachines(data)
+  const fetchMachinesFromDatabase = async () => {
+    try {
+      console.log('🔍 Fetching machines from database...')
       
-      // Preload images
-      data.forEach(machine => {
-        if (machine.image_url) {
-          const img = new Image()
-          img.src = machine.image_url
-          img.onload = () => {
-            setImagesLoaded(prev => ({ ...prev, [machine.id]: true }))
+      const { data, error } = await supabase
+        .from('machine_types')
+        .select('*')
+        .order('id')
+
+      if (error) {
+        console.error('❌ Database fetch error:', error)
+        throw error
+      }
+      
+      console.log('✅ Machines from database:', data?.map(m => ({ id: m.id, name: m.name, typeOfId: typeof m.id })))
+      
+      if (data && data.length > 0) {
+        setDatabaseMachines(data)
+        
+        // Preload images
+        data.forEach(machine => {
+          if (machine.image_url) {
+            const img = new Image()
+            img.src = machine.image_url
+            img.onload = () => {
+              setImagesLoaded(prev => ({ ...prev, [machine.id]: true }))
+            }
+            img.onerror = () => {
+              console.warn(`Failed to load image for machine ${machine.id}`)
+              setImagesLoaded(prev => ({ ...prev, [machine.id]: false }))
+            }
           }
-          img.onerror = () => {
-            console.warn(`Failed to load image for machine ${machine.id}`)
-            setImagesLoaded(prev => ({ ...prev, [machine.id]: false }))
-          }
-        }
-      })
-    } else {
-      console.log('⚠️ No machines found in database, using fallback')
+        })
+      } else {
+        console.log('⚠️ No machines found in database, using fallback')
+        setDatabaseMachines(machines)
+      }
+    } catch (error) {
+      console.error('❌ Error fetching machines from database:', error)
       setDatabaseMachines(machines)
     }
-  } catch (error) {
-    console.error('❌ Error fetching machines from database:', error)
-    // Fallback to hardcoded machines if database fails
-    setDatabaseMachines(machines)
   }
-}
 
   // Fetch user's owned machines
   const fetchUserMachines = async () => {
@@ -117,11 +122,24 @@ const fetchMachinesFromDatabase = async () => {
     try {
       const { data, error } = await supabase
         .from('user_machines')
-        .select('machine_type_id, is_active, activated_at, last_claim_time')
+        .select('machine_type_id, is_active, activated_at, last_claim_time, total_earned')
         .eq('user_id', user.id)
       
       if (error) throw error
       setUserMachines(data || [])
+      
+      // Initialize mining states for owned machines
+      data?.forEach(machine => {
+        const isNewMachine = !machine.last_claim_time && !machine.activated_at
+        if (!miningStates[machine.machine_type_id]) {
+          initializeMachineState(
+            machine.machine_type_id,
+            machine.total_earned || 0,
+            isNewMachine
+          )
+        }
+      })
+      
     } catch (error) {
       console.error('Error fetching user machines:', error)
     }
@@ -135,111 +153,7 @@ const fetchMachinesFromDatabase = async () => {
   }, [user])
 
   const machines: MachineType[] = [
-    // ... (keep your existing machines array exactly as it is)
-    {
-      id: "1",
-      name: "AI Gaming Starter Pro",
-      price: 2500,
-      daily_earning_rate: 900,
-      monthly_earning: 27000,
-      description:
-        "Entry-level AI gaming machine with stunning 4K holographic displays and neural networks for optimal ad targeting. Perfect for beginners with 24/7 automated operation.",
-      features: ["4K Holographic Display", "Neural Ad Targeting", "24/7 Operation", "Real-time Tracking"],
-      image_query: "futuristic blue holographic AI gaming machine with glowing circuits and 4K displays",
-      is_available: true,
-      gradient: "blue-cyan",
-    },
-    {
-      id: "2",
-      name: "Smart Gaming Engine X1",
-      price: 5000,
-      daily_earning_rate: 1650,
-      monthly_earning: 49500,
-      description:
-        "Enhanced AI gaming system with premium 4K animations and smart targeting algorithms. Features holographic interface and bonus multipliers for higher earnings.",
-      features: ["Premium 4K Animations", "Smart Algorithms", "Holographic Interface", "Bonus Multipliers"],
-      image_query: "purple smart gaming AI engine with holographic interface and glowing energy cores",
-      is_available: true,
-      gradient: "purple-pink",
-    },
-    {
-      id: "3",
-      name: "Quantum Gaming Processor",
-      price: 10000,
-      daily_earning_rate: 3500,
-      monthly_earning: 105000,
-      description:
-        "High-performance gaming AI with quantum-level 4K animations and multiple stream processing. Features ultra-realistic gaming visuals and VIP ad access.",
-      features: ["Quantum Processing", "Multiple Streams", "Ultra-realistic Visuals", "VIP Ad Access"],
-      image_query: "green quantum gaming processor with energy particles and advanced holographic displays",
-      is_available: true,
-      gradient: "green-emerald",
-    },
-    {
-      id: "4",
-      name: "Neural Gaming Maximizer",
-      price: 15000,
-      daily_earning_rate: 5000,
-      monthly_earning: 150000,
-      description:
-        "Professional-grade gaming AI with deep learning and 4K ultra-realistic animations. Accesses exclusive high-paying ad networks with advanced analytics.",
-      features: ["Deep Learning AI", "Ultra-realistic 4K", "Exclusive Networks", "Advanced Analytics"],
-      image_query: "orange neural gaming maximizer with brain-like patterns and glowing neural networks",
-      is_available: true,
-      gradient: "orange-red",
-    },
-    {
-      id: "5",
-      name: "Hyper Gaming Intelligence",
-      price: 25000,
-      daily_earning_rate: 8333,
-      monthly_earning: 250000,
-      description:
-        "Ultimate gaming AI with superintelligent algorithms and 4K ultra-realistic animations. Premium advertiser networks with white-glove support and exclusive aesthetics.",
-      features: ["Superintelligent AI", "Premium Networks", "White-glove Support", "Exclusive Aesthetics"],
-      image_query: "red hyper gaming intelligence machine with energy beams and advanced holographic displays",
-      is_available: true,
-      gradient: "red-pink",
-    },
-    {
-      id: "6",
-      name: "Elite Gaming Matrix",
-      price: 50000,
-      daily_earning_rate: 16666,
-      monthly_earning: 500000,
-      description:
-        "Revolutionary gaming AI with 8K ultra-realistic animations and matrix-level processing. Features next-generation gaming aesthetics and quantum ad optimization.",
-      features: ["8K Ultra-realistic", "Matrix Processing", "Next-gen Aesthetics", "Quantum Optimization"],
-      image_query: "golden elite gaming matrix with circuit patterns and holographic gaming interface",
-      is_available: true,
-      gradient: "yellow-amber",
-    },
-    {
-      id: "7",
-      name: "Omega Gaming Core",
-      price: 100000,
-      daily_earning_rate: 33333,
-      monthly_earning: 1000000,
-      description:
-        "Supreme gaming AI with unlimited 4K processing and omnipotent algorithms. Ultra-realistic gaming visuals, cosmic ad networks, and interdimensional optimization.",
-      features: ["Unlimited Processing", "Omnipotent AI", "Cosmic Networks", "Interdimensional Tech"],
-      image_query: "cosmic silver omega gaming core with space portals and divine energy effects",
-      is_available: false,
-      gradient: "indigo-purple",
-    },
-    {
-      id: "8",
-      name: "Genesis Gaming God",
-      price: 150000,
-      daily_earning_rate: 50000,
-      monthly_earning: 1500000,
-      description:
-        "Godlike gaming AI with transcendent 4K animations and universal processing power. Reality-bending gaming aesthetics, multiverse ad networks, and divine optimization.",
-      features: ["Transcendent AI", "Universal Processing", "Reality-bending", "Multiverse Networks"],
-      image_query: "divine white and gold genesis gaming machine with heavenly light effects and cosmic energy",
-      is_available: false,
-      gradient: "pink-rose",
-    },
+    // ... (your existing machines array)
   ]
 
   // Use database machines if available, otherwise fallback to hardcoded
@@ -247,12 +161,10 @@ const fetchMachinesFromDatabase = async () => {
 
   // Helper function to get earnings value safely
   const getDailyEarnings = (machine: MachineType) => {
-    // Try database field first, then fallback to hardcoded field
     return machine.daily_earnings || machine.daily_earning_rate || 0
   }
 
   const getMonthlyEarnings = (machine: MachineType) => {
-    // Try database field first, then fallback to hardcoded field
     return machine.monthly_earnings || machine.monthly_earning || 0
   }
 
@@ -312,79 +224,75 @@ const fetchMachinesFromDatabase = async () => {
   // Get mining status for a machine
   const getMiningStatus = (machineId: string) => {
     const userMachine = userMachines.find(um => um.machine_type_id === machineId)
-    const miningData = miningMachines[machineId]
+    const miningState = miningStates[machineId] || {
+      isActive: false,
+      canClaim: false,
+      progress: 0,
+      timeRemaining: '24h 0m',
+      totalEarned: userMachine?.total_earned || 0,
+      isNewMachine: true
+    }
     
     return {
       owned: !!userMachine,
-      isActive: userMachine?.is_active || false,
-      miningData: miningData
+      isActive: miningState.isActive,
+      canClaim: miningState.canClaim,
+      progress: miningState.progress,
+      timeRemaining: miningState.timeRemaining,
+      totalEarned: miningState.totalEarned
     }
   }
 
   // Handle activate machine
-  const handleActivate = async (machineId: string) => {
-    if (!onActivateMachine) return
-    
-    await onActivateMachine(machineId)
-    // Refresh user machines after activation
-    setTimeout(() => fetchUserMachines(), 1000)
+  const handleActivate = (machineId: string) => {
+    console.log('🚀 Activating machine:', machineId)
+    activateMachine(machineId)
+    toast.success('Machine activated! 🚀 Mining started...')
   }
 
   // Handle claim earnings
   const handleClaim = async (machineId: string) => {
-    if (!onClaimEarnings) return
-    
-    await onClaimEarnings(machineId)
-    // Refresh user machines after claim
-    setTimeout(() => fetchUserMachines(), 1000)
+    try {
+      const machine = displayMachines.find(m => m.id === machineId)
+      if (!machine) {
+        toast.error('Machine not found')
+        return
+      }
+
+      const dailyEarnings = getDailyEarnings(machine)
+      await claimEarnings(machineId, dailyEarnings)
+      toast.success(`💰 Successfully claimed ${dailyEarnings.toLocaleString()} XAF!`)
+      
+    } catch (error) {
+      console.error('Claim error:', error)
+      toast.error('Failed to claim earnings')
+    }
   }
 
   // This function is called when user clicks "Buy Now"
-const handlePurchaseClick = (machineId: string) => {
-  if (!user) {
-    toast.error("Please log in to purchase machines")
-    return
-  }
-  
-  console.log('🛒 DEBUG: Purchase clicked')
-  console.log('  - Requested machine ID:', machineId, typeof machineId)
-  console.log('  - User ID:', user.id, typeof user.id)
-  
-  // Log ALL available machines to see what we have
-  console.log('📋 ALL display machines:', displayMachines.map(m => ({
-    id: m.id, 
-    name: m.name,
-    typeOfId: typeof m.id,
-    price: m.price
-  })))
-  
-  const machine = displayMachines.find((m) => m.id === machineId)
-  
-  if (!machine) {
-    console.error('❌ Machine not found in frontend data')
-    console.error('❌ Available machine IDs:', displayMachines.map(m => m.id))
-    toast.error("Machine not found. Please try again.")
-    return
-  }
+  const handlePurchaseClick = (machineId: string) => {
+    if (!user) {
+      toast.error("Please log in to purchase machines")
+      return
+    }
+    
+    const machine = displayMachines.find((m) => m.id === machineId)
+    
+    if (!machine) {
+      toast.error("Machine not found. Please try again.")
+      return
+    }
 
-  console.log('✅ Machine found in frontend:')
-  console.log('  - Machine ID:', machine.id, typeof machine.id)
-  console.log('  - Machine Name:', machine.name)
-  console.log('  - Machine Price:', machine.price, typeof machine.price)
-
-  // Set the selected machine and open payment modal
-  setSelectedMachine(machine)
-  setPaymentModalOpen(true)
-}
+    setSelectedMachine(machine)
+    setPaymentModalOpen(true)
+  }
 
   // This function is called after successful payment
   const handlePaymentSuccess = () => {
     toast.success("Payment completed! Your machine will be activated shortly.")
     setPaymentModalOpen(false)
     setSelectedMachine(null)
-    // Refresh user data to show new machine
     refreshUser()
-    // Refresh user machines list
     fetchUserMachines()
   }
 
@@ -419,7 +327,7 @@ const handlePurchaseClick = (machineId: string) => {
               const monthlyEarnings = getMonthlyEarnings(machine)
               const gradient = getGradientClasses(machine.gradient || "blue-cyan")
               const miningStatus = getMiningStatus(machine.id)
-              const miningData = miningStatus.miningData
+              const isClaiming = localClaiming === machine.id
               
               return (
                 <Card
@@ -465,14 +373,12 @@ const handlePurchaseClick = (machineId: string) => {
                       
                       {hasDatabaseImage ? (
                         <>
-                          {/* Loading skeleton for database images */}
                           {!isImageLoaded && (
                             <div className="absolute inset-0 bg-slate-700 animate-pulse flex items-center justify-center">
                               <ImageIcon className="h-12 w-12 text-slate-500" />
                             </div>
                           )}
                           
-                          {/* Database image */}
                           <img
                             src={machine.image_url}
                             alt={machine.name}
@@ -484,7 +390,6 @@ const handlePurchaseClick = (machineId: string) => {
                           />
                         </>
                       ) : (
-                        /* Fallback to local images if no database image */
                         <img
                           src={`/images/Generated Image September 15, 2025 - 7_42PM.png`}
                           alt={machine.name}
@@ -504,17 +409,17 @@ const handlePurchaseClick = (machineId: string) => {
                       </div>
 
                       {/* Mining Progress Overlay */}
-                      {miningStatus.owned && miningData?.isActive && (
+                      {miningStatus.owned && miningStatus.isActive && (
                         <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-2">
                           <div className="flex items-center justify-between text-xs text-white">
                             <div className="flex items-center space-x-1">
                               <Timer className="h-3 w-3" />
-                              <span>{miningData.timeRemaining}</span>
+                              <span>{miningStatus.timeRemaining}</span>
                             </div>
                             <div className="w-16 bg-slate-600 rounded-full h-1.5">
                               <div 
                                 className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
-                                style={{ width: `${miningData.progress}%` }}
+                                style={{ width: `${miningStatus.progress}%` }}
                               ></div>
                             </div>
                           </div>
@@ -577,14 +482,17 @@ const handlePurchaseClick = (machineId: string) => {
                       {/* Mining Action Buttons */}
                       {miningStatus.owned ? (
                         <div className="space-y-2">
-                          {miningData?.canClaim ? (
+                          {miningStatus.canClaim ? (
                             <Button
                               onClick={() => handleClaim(machine.id)}
-                              disabled={claimingMachine === machine.id}
+                              disabled={isClaiming}
                               className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 font-bold text-lg py-6 shadow-lg"
                             >
-                              {claimingMachine === machine.id ? (
-                                "🔄 Claiming..."
+                              {isClaiming ? (
+                                <>
+                                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                  Claiming...
+                                </>
                               ) : (
                                 <>
                                   <CheckCircle className="h-5 w-5 mr-2" />
@@ -592,33 +500,25 @@ const handlePurchaseClick = (machineId: string) => {
                                 </>
                               )}
                             </Button>
-                          ) : miningData?.isActive ? (
+                          ) : miningStatus.isActive ? (
                             <Button
                               disabled
                               className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 font-bold text-lg py-6 shadow-lg"
                             >
                               <Timer className="h-5 w-5 mr-2" />
-                              Mining... {miningData.timeRemaining}
+                              Mining... {miningStatus.timeRemaining}
                             </Button>
                           ) : (
                             <Button
                               onClick={() => handleActivate(machine.id)}
-                              disabled={activatingMachine === machine.id}
                               className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 font-bold text-lg py-6 shadow-lg"
                             >
-                              {activatingMachine === machine.id ? (
-                                "🔄 Activating..."
-                              ) : (
-                                <>
-                                  <Zap className="h-5 w-5 mr-2" />
-                                  Start Mining
-                                </>
-                              )}
+                              <Zap className="h-5 w-5 mr-2" />
+                              Start Mining
                             </Button>
                           )}
                         </div>
                       ) : (
-                        /* Purchase Button for non-owned machines */
                         <Button
                           onClick={() => handlePurchaseClick(machine.id)}
                           disabled={!machine.is_available || purchasing === machine.id}
@@ -629,7 +529,7 @@ const handlePurchaseClick = (machineId: string) => {
                       )}
 
                       {/* Watch Ad Button (Optional) */}
-                      {onWatchAd && machine.is_available && miningStatus.owned && !miningData?.isActive && (
+                      {onWatchAd && machine.is_available && miningStatus.owned && !miningStatus.isActive && (
                         <Button
                           onClick={() => onWatchAd(machine.id, machine.name)}
                           className="w-full bg-cyan-500 hover:bg-cyan-600 font-bold text-lg py-3 shadow-lg"

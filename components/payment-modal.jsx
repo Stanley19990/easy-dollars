@@ -5,8 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CreditCard, Loader2, Phone, CheckCircle } from "lucide-react"
+import { CreditCard, Loader2, Phone, CheckCircle, Smartphone } from "lucide-react"
 import { toast } from "sonner"
+import { NotificationService } from '@/lib/notification-service'
 
 export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSuccess }) {
   const [processing, setProcessing] = useState(false)
@@ -28,93 +29,45 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
       return
     }
 
-    const validatedPhone = phoneWithoutSpaces;
-
-    console.log('🚀 LIVE: Creating payment with:', validatedPhone)
+    console.log('🚀 Initiating secure payment...')
 
     setProcessing(true)
 
     try {
-      // LIVE API CALL - Using /direct-pay endpoint (confirmed working in sandbox)
-      const response = await fetch('https://live.fapshi.com/direct-pay', {
+      // Call our secure server-side API route
+      const response = await fetch('/api/payments/direct-pay', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apiuser': process.env.NEXT_PUBLIC_FAPSHI_API_USER || '18ccc447-be5f-46a5-b3fc-79394dbf75d7',
-          'apikey': process.env.NEXT_PUBLIC_FAPSHI_API_KEY || 'FAK_82dd05f91bd37790c120ab6bb5dc8f56'
         },
         body: JSON.stringify({
-          amount: Math.round(machine.price),
-          phone: validatedPhone,
-          medium: selectedMethod === "mobile_money" ? "mobile money" : "orange money",
-          name: user.name || user.email?.split('@')[0] || 'Customer',
-          email: user.email || "customer@easydollars.com",
+          amount: machine.price,
+          machineId: machine.id,
           userId: user.id,
-          externalId: `MACHINE_${machine.id}_${user.id}_${Date.now()}`,
-          message: `Purchase ${machine.name} - EasyDollars`
+          machineName: machine.name,
+          phone: phoneWithoutSpaces,
+          medium: selectedMethod === "mobile_money" ? "mobile money" : "orange money",
+          userEmail: user.email,
+          userName: user.name || user.email?.split('@')[0] || 'Customer'
         })
       })
 
-      console.log('📨 Response status:', response.status)
-
-      // Handle response
-      const contentType = response.headers.get('content-type')
-      let data;
-
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json()
-      } else {
-        const textResponse = await response.text()
-        console.log('📨 Non-JSON response:', textResponse)
-        
-        if (textResponse.includes('Cannot POST')) {
-          throw new Error('Payment endpoint not found. Please contact Fapshi support.')
-        } else if (!response.ok) {
-          throw new Error(`Payment failed: ${response.status} - ${textResponse.substring(0, 100)}`)
-        } else {
-          throw new Error('Unexpected response from payment service')
-        }
-      }
-
-      console.log('📨 Fapshi LIVE /direct-pay response:', data)
+      const data = await response.json()
+      console.log('📨 Secure API response:', data)
 
       if (!response.ok) {
-        throw new Error(data.message || `Payment failed: ${response.status}`)
+        throw new Error(data.error || 'Payment creation failed')
       }
 
-      // Check if we got the expected response
-      if (!data.transId) {
-        throw new Error('Invalid response from payment service - missing transaction ID')
-      }
-
-      // Record transaction
-      try {
-        await fetch('/api/payments/record', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: machine.price,
-            machineId: machine.id,
-            userId: user.id,
-            machineName: machine.name,
-            phone: validatedPhone,
-            medium: selectedMethod,
-            transId: data.transId,
-            status: 'pending',
-            isSandbox: false
-          })
-        })
-      } catch (saveError) {
-        console.log('⚠️ Could not save transaction record, but payment was sent')
-      }
-
-      toast.success("✅ Payment request sent to your phone!")
-      toast.info("📱 Check your phone and complete the payment")
+      // Success - payment request sent to Fapshi
+      toast.success("✅ " + (data.message || 'Payment request sent to your phone!'))
+      toast.info("📱 Check your phone to complete the payment")
       
+      // Close modal
       onOpenChange(false)
 
     } catch (error) {
-      console.error('❌ LIVE Payment error:', error)
+      console.error('❌ Payment error:', error)
       toast.error("❌ " + error.message)
     } finally {
       setProcessing(false)
@@ -141,13 +94,17 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Live Mode Info */}
-          <div className="bg-green-500/10 border border-green-500/20 rounded p-3">
-            <div className="flex items-start text-green-300 text-sm">
-              <CheckCircle className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+          {/* USSD Codes Info */}
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded p-3">
+            <div className="flex items-start text-blue-300 text-sm">
+              <Smartphone className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-semibold">LIVE PAYMENT MODE</p>
-                <p className="text-xs mt-1">Using /direct-pay endpoint</p>
+                <p className="font-semibold">COMPLETE PAYMENT WITH USSD</p>
+                <p className="text-xs mt-1">
+                  Dial <span className="font-bold">#150*50#</span> for Orange Money
+                  <br />
+                  Dial <span className="font-bold">*126#</span> for MTN Mobile Money
+                </p>
               </div>
             </div>
           </div>
@@ -219,7 +176,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
             {processing ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Sending Payment...
+                Sending Payment Request...
               </>
             ) : (
               <>
@@ -230,7 +187,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           </Button>
 
           <div className="text-xs text-slate-400 text-center">
-            Using /direct-pay endpoint • Real SMS will be sent
+            Payment request sent to your phone • Complete with USSD codes
           </div>
 
           <Button

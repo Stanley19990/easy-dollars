@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server"
-import { supabaseAdmin } from "./supabase-admin"
+import { supabaseAdmin } from "./supabaseAdmin"
 
 // Load admin emails from environment variable with fallback
 const ADMIN_EMAILS = process.env.ADMIN_EMAILS

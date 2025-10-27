@@ -25,7 +25,7 @@ export function WalletOverview() {
           <CardTitle className="text-sm font-medium text-slate-400">Wallet Balance</CardTitle>
           <div className="flex items-center gap-2">
             <Wallet className="h-4 w-4 text-green-400" />
-            <RefreshCw className="h-4 w-4 text-slate-400 cursor-pointer" onClick={handleRefresh} />
+            <RefreshCw className={`h-4 w-4 text-slate-400 cursor-pointer ${loading ? 'animate-spin' : ''}`} onClick={handleRefresh} />
           </div>
         </CardHeader>
         <CardContent>
@@ -65,7 +65,7 @@ export function WalletOverview() {
           <DollarSign className="h-4 w-4 text-purple-400" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-purple-400">{user.machines_owned}</div>
+          <div className="text-2xl font-bold text-purple-400">{user.machines_owned || 0}</div>
           <p className="text-xs text-slate-500 mt-1">Active machines</p>
         </CardContent>
       </Card>
