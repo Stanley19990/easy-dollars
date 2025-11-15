@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { NotificationService } from '@/lib/notification-service'
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -61,16 +60,44 @@ export async function POST(request: NextRequest) {
 
     console.log('📊 Found machine:', userMachine.id)
 
-    // Calculate earnings - for now, use fixed daily earnings
-    const machineType = userMachine.machine_types
-    const earnedAmount = machineType.daily_earnings || 100
+    // Check if machine is active and can claim
+    if (!userMachine.is_active) {
+      return NextResponse.json(
+        { success: false, error: 'Machine is not active. Start mining first.' },
+        { status: 400 }
+      )
+    }
 
-    console.log('💰 Earnings calculated:', earnedAmount)
+    // Check if 24 hours have passed since last claim
+    if (userMachine.last_claim_time) {
+      const lastClaim = new Date(userMachine.last_claim_time)
+      const now = new Date()
+      const hoursSinceClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60)
+      
+      if (hoursSinceClaim < 24) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Mining not complete. Please wait 24 hours between claims.',
+            hoursRemaining: Math.ceil(24 - hoursSinceClaim)
+          },
+          { status: 400 }
+        )
+      }
+    }
 
-    // Update user balance
+    // Calculate earnings in XAF
+    const machineType = Array.isArray(userMachine.machine_types) 
+      ? userMachine.machine_types[0] 
+      : userMachine.machine_types
+    const earnedAmountXAF = machineType?.daily_earnings || 100
+
+    console.log('💰 Earnings calculated:', { earnedAmountXAF, machineName: machineType?.name })
+
+    // Get current user data
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('ed_balance, total_earned')
+      .select('wallet_balance, total_earned')
       .eq('id', userId)
       .single()
 
@@ -82,70 +109,96 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const newBalance = (userData.ed_balance || 0) + earnedAmount
-    const newTotalEarned = (userData.total_earned || 0) + earnedAmount
+    const newWalletBalance = (userData.wallet_balance || 0) + earnedAmountXAF
+    const newTotalEarned = (userData.total_earned || 0) + earnedAmountXAF
 
-    // Update user balance
-    const { error: balanceError } = await supabase
-      .from('users')
-      .update({
-        ed_balance: newBalance,
-        total_earned: newTotalEarned,
-        updated_at: new Date().toISOString()
+    // Start a transaction to ensure all operations succeed or fail together
+    try {
+      // Update user balance (in XAF)
+      const { error: balanceError } = await supabase
+        .from('users')
+        .update({
+          wallet_balance: newWalletBalance,
+          total_earned: newTotalEarned
+        })
+        .eq('id', userId)
+
+      if (balanceError) throw balanceError
+
+      // Update machine last claim time and total earned (in XAF)
+      const newMachineTotalEarned = (userMachine.total_earned || 0) + earnedAmountXAF
+      const { error: machineUpdateError } = await supabase
+        .from('user_machines')
+        .update({
+          last_claim_time: new Date().toISOString(),
+          total_earned: newMachineTotalEarned,
+          is_active: true // Keep machine active for next cycle
+        })
+        .eq('id', userMachineId)
+
+      if (machineUpdateError) throw machineUpdateError
+
+      // ✅ RECORD EARNINGS TRANSACTION (in XAF) - This is critical for analytics
+      const { error: earningsError } = await supabase
+        .from('earnings')
+        .insert({
+          user_id: userId,
+          machine_id: userMachineId,
+          amount: earnedAmountXAF,
+          earned_at: new Date().toISOString(),
+          type: 'mining_earnings'
+        })
+
+      if (earningsError) {
+        console.error('❌ Earnings recording error:', earningsError)
+        // Continue even if earnings recording fails
+      }
+
+      // ✅ RECORD WALLET TRANSACTION (in XAF) - This is what users see in transaction history
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: userId,
+          type: 'mining_earnings',
+          description: `Machine earnings from ${machineType?.name || 'Unknown Machine'}`,
+          amount: earnedAmountXAF,
+          currency: 'XAF',
+          status: 'completed',
+          external_id: `mining_${userMachineId}_${Date.now()}`,
+          metadata: {
+            machine_name: machineType?.name || 'Unknown Machine',
+            machine_id: userMachineId,
+            machine_type_id: userMachine.machine_type_id,
+            claim_timestamp: new Date().toISOString()
+          }
+        })
+
+      if (transactionError) {
+        console.error('❌ Transaction recording error:', transactionError)
+        // Continue even if transaction recording fails
+      }
+
+      console.log('✅ Claim successful - All operations completed')
+
+      return NextResponse.json({
+        success: true,
+        message: `Successfully claimed ${earnedAmountXAF.toLocaleString()} XAF from ${machineType?.name || 'your machine'}`,
+        amountXAF: earnedAmountXAF,
+        newWalletBalance: newWalletBalance,
+        newTotalEarned: newMachineTotalEarned,
+        machineName: machineType?.name
       })
-      .eq('id', userId)
 
-    if (balanceError) {
-      console.error('❌ Balance update error:', balanceError)
+    } catch (transactionError: any) {
+      console.error('❌ Database transaction failed:', transactionError)
       return NextResponse.json(
-        { success: false, error: 'Failed to update user balance' },
+        { 
+          success: false, 
+          error: 'Failed to complete claim transaction. Please try again.' 
+        },
         { status: 500 }
       )
     }
-
-    // Record transaction
-    const { data: transaction, error: transactionError } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: userId,
-        type: 'earning_claim',
-        description: `Earnings claim from ${machineType.name}`,
-        amount: earnedAmount,
-        currency: 'ED',
-        status: 'completed',
-        external_id: `claim_${userMachineId}_${Date.now()}`
-      })
-      .select()
-      .single()
-
-    if (transactionError) {
-      console.error('❌ Transaction error:', transactionError)
-      // Continue even if transaction recording fails
-    }
-
-    // Update machine last claim time
-    const { error: machineUpdateError } = await supabase
-      .from('user_machines')
-      .update({
-        last_claim_time: new Date().toISOString(),
-        total_earned: (userMachine.total_earned || 0) + earnedAmount,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userMachineId)
-
-    if (machineUpdateError) {
-      console.error('❌ Machine update error:', machineUpdateError)
-      // Continue even if machine update fails
-    }
-
-    console.log('✅ Claim successful')
-
-    return NextResponse.json({
-      success: true,
-      message: `Successfully claimed ${earnedAmount} ED`,
-      amount: earnedAmount,
-      transactionId: transaction?.id
-    })
 
   } catch (error: any) {
     console.error('❌ Claim earnings error:', error)
@@ -164,6 +217,15 @@ export async function GET() {
   return NextResponse.json({
     success: true,
     message: 'Claim earnings API is working',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      POST: {
+        description: 'Claim earnings from a user machine',
+        body: {
+          userMachineId: 'number (required)',
+          userId: 'string (required)'
+        }
+      }
+    }
   })
 }

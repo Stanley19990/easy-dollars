@@ -1,99 +1,82 @@
-import { supabase } from './supabase'
+// lib/notification-service.ts
+import { createClient } from '@supabase/supabase-js'
 
-export interface CreateNotificationParams {
-  userId: string
-  title: string
-  message: string
-  type: 'payment' | 'earning' | 'referral' | 'system' | 'warning'
-  relatedId?: string
-  metadata?: any
+const getSupabaseClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseKey) {
+    return null
+  }
+
+  return createClient(supabaseUrl, supabaseKey)
 }
 
+const supabase = getSupabaseClient()
+
 export class NotificationService {
-  static async createNotification(params: CreateNotificationParams) {
+  static markAsRead(notificationId: string) {
+    throw new Error("Method not implemented.")
+  }
+  static async createNotification(notification: any) {
+    if (!supabase) {
+      console.warn('Supabase not available - notification skipped')
+      return null
+    }
+
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('notifications')
-        .insert({
-          user_id: params.userId,
-          title: params.title,
-          message: params.message,
-          type: params.type,
-          related_id: params.relatedId,
-          metadata: params.metadata,
-          is_read: false
-        })
+        .insert([notification])
+        .select()
+        .single()
 
-      if (error) {
-        console.error('Error creating notification:', error)
-        return false
-      }
-
-      console.log('✅ Notification created:', params.title)
-      return true
+      if (error) throw error
+      return data
     } catch (error) {
       console.error('Error creating notification:', error)
-      return false
+      return null
     }
   }
 
-  // Pre-defined notification templates
-  static async notifyPaymentSuccess(userId: string, amount: number, machineName: string) {
-    return this.createNotification({
-      userId,
-      title: 'Payment Successful!',
-      message: `Your payment of ${amount.toLocaleString()} XAF for ${machineName} was successful.`,
-      type: 'payment',
-      metadata: { amount, machineName }
-    })
+  static async getUserNotifications(userId: string) {
+    if (!supabase) {
+      console.warn('Supabase not available - returning empty notifications')
+      return []
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+      return []
+    }
   }
 
-  static async notifyEarningClaimed(userId: string, amount: number, machineName: string) {
-    return this.createNotification({
-      userId,
-      title: 'Earnings Claimed!',
-      message: `You successfully claimed ${amount} ED from ${machineName}.`,
-      type: 'earning',
-      metadata: { amount, machineName }
-    })
-  }
+  static async getUnreadCount(userId: string) {
+    if (!supabase) {
+      return 0
+    }
 
-  static async notifyReferralBonus(userId: string, referredUser: string, bonusAmount: number) {
-    return this.createNotification({
-      userId,
-      title: 'Referral Bonus!',
-      message: `You earned $${bonusAmount} from ${referredUser}'s purchase.`,
-      type: 'referral',
-      metadata: { referredUser, bonusAmount }
-    })
-  }
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false)
 
-  static async notifyMachineActivated(userId: string, machineName: string) {
-    return this.createNotification({
-      userId,
-      title: 'Machine Activated!',
-      message: `Your ${machineName} is now mining and earning rewards.`,
-      type: 'earning',
-      metadata: { machineName }
-    })
-  }
-
-  static async notifyConversionComplete(userId: string, edAmount: number, usdAmount: number) {
-    return this.createNotification({
-      userId,
-      title: 'Conversion Complete!',
-      message: `You converted ${edAmount} ED to $${usdAmount.toFixed(2)} USD.`,
-      type: 'payment',
-      metadata: { edAmount, usdAmount }
-    })
-  }
-
-  static async notifyLowBalance(userId: string) {
-    return this.createNotification({
-      userId,
-      title: 'Low Balance',
-      message: 'Your ED balance is getting low. Consider converting or purchasing more machines.',
-      type: 'warning'
-    })
+      if (error) throw error
+      return count || 0
+    } catch (error) {
+      console.error('Error getting unread count:', error)
+      return 0
+    }
   }
 }

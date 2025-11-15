@@ -1,3 +1,4 @@
+// app/wallet/page.tsx
 "use client"
 
 import { useAuth } from "@/hooks/use-auth"
@@ -46,16 +47,17 @@ export default function WalletPage() {
         setCanWithdraw(new Date() >= oneMonthLater)
       }
 
-      // Transactions - Only show earnings and withdrawals
+      // Transactions - Show ALL transaction types
       const { data: txs, error: txError } = await supabase
         .from("transactions")
         .select("*")
         .eq("user_id", user.id)
-        .in("type", ['earning', 'withdrawal'])
         .order("created_at", { ascending: false })
         .limit(50)
       if (txError) throw txError
-      setTransactions(txs ?? [])
+      
+      // All transactions are already in XAF, no conversion needed
+      setTransactions(txs || [])
 
       // Referrals
       const { data: refs, error: refError } = await supabase
@@ -82,13 +84,28 @@ export default function WalletPage() {
   }, [user])
 
   const handleWithdrawalRequest = async () => {
-    if (!user) return
+    if (!user || !walletData) return
+    
+    const withdrawalAmountXAF = walletData.wallet_balance
+    
+    if (withdrawalAmountXAF < 3000) {
+      toast.error("Minimum withdrawal amount is 3,000 XAF")
+      return
+    }
+
     try {
-      const { error } = await supabase.from("withdrawal_requests").insert([
-        { user_id: user.id, amount: walletData?.wallet_balance ?? 0, status: "pending" }
+      const { error } = await supabase.from("withdrawals").insert([
+        { 
+          user_id: user.id, 
+          amount: withdrawalAmountXAF,
+          status: "pending" 
+        }
       ])
       if (error) throw error
-      toast.success("Withdrawal request submitted!")
+      toast.success(`Withdrawal request submitted for ${withdrawalAmountXAF.toLocaleString()} XAF!`)
+      
+      // Refresh data
+      fetchWalletData()
     } catch (err) {
       console.error(err)
       toast.error("Failed to submit withdrawal request.")
@@ -126,7 +143,7 @@ export default function WalletPage() {
             {/* Left Section */}
             <div className="xl:col-span-2 space-y-6 lg:space-y-8">
               <WalletBalance wallet={walletData?.wallet_balance ?? 0} />
-              <EarningsConverter /> {/* Only once */}
+              <EarningsConverter />
               <TransactionHistory transactions={transactions} />
             </div>
 
@@ -136,23 +153,37 @@ export default function WalletPage() {
               <div className="p-6 bg-slate-800/30 rounded-xl">
                 <h3 className="font-bold text-cyan-400 text-lg mb-2">Withdrawals</h3>
                 <p className="text-slate-400 text-sm mb-4">
-                  Withdrawals are available once you’ve completed <b>1 month</b> on the platform.
+                  Withdrawals are available once you've completed <b>1 month</b> on the platform.
                   After that, you may submit a request anytime.
                 </p>
+                
+                {/* Available Balance Display */}
+                <div className="bg-slate-700/50 rounded-lg p-4 mb-4">
+                  <p className="text-slate-300 text-sm">Available Balance</p>
+                  <p className="text-2xl font-bold text-green-400">
+                    {(walletData?.wallet_balance || 0).toLocaleString()} XAF
+                  </p>
+                </div>
+                
                 <button
-                  className={`w-full px-4 py-2 rounded-lg font-semibold ${
+                  className={`w-full px-4 py-3 rounded-lg font-semibold ${
                     canWithdraw
                       ? "bg-cyan-500 hover:bg-cyan-600 text-white"
                       : "bg-slate-600 text-slate-400 cursor-not-allowed"
                   }`}
                   onClick={handleWithdrawalRequest}
-                  disabled={!canWithdraw}
+                  disabled={!canWithdraw || (walletData?.wallet_balance || 0) < 3000}
                 >
-                  Request Withdrawal
+                  {canWithdraw ? "Request Withdrawal" : "Withdrawal Locked"}
                 </button>
                 {!canWithdraw && (
                   <p className="text-xs text-slate-400 mt-2">
                     Withdrawals will open automatically after your first month.
+                  </p>
+                )}
+                {(walletData?.wallet_balance || 0) < 3000 && canWithdraw && (
+                  <p className="text-xs text-amber-400 mt-2">
+                    Minimum withdrawal: 3,000 XAF
                   </p>
                 )}
               </div>
@@ -170,16 +201,16 @@ export default function WalletPage() {
                   <tr>
                     <th className="px-4 py-2">Username</th>
                     <th className="px-4 py-2">Email</th>
-                    <th className="px-4 py-2">Bonus (ED)</th>
+                    <th className="px-4 py-2">Bonus (XAF)</th>
                     <th className="px-4 py-2">Date</th>
                   </tr>
                 </thead>
                 <tbody>
                   {referrals.map((ref) => (
                     <tr key={ref.id} className="border-b border-slate-700">
-                      <td className="px-4 py-2">{ref.referred_user?.username ?? "N/A"}</td>
-                      <td className="px-4 py-2">{ref.referred_user?.email ?? "N/A"}</td>
-                      <td className="px-4 py-2 font-bold">{ref.bonus}</td>
+                      <td className="px-4 py-2">{ref.referred_user?.[0]?.username ?? ref.referred_user?.username ?? "N/A"}</td>
+                      <td className="px-4 py-2">{ref.referred_user?.[0]?.email ?? ref.referred_user?.email ?? "N/A"}</td>
+                      <td className="px-4 py-2 font-bold text-green-400">{ref.bonus} XAF</td>
                       <td className="px-4 py-2">{new Date(ref.referral_date).toLocaleDateString()}</td>
                     </tr>
                   ))}

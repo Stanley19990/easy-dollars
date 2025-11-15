@@ -1,12 +1,12 @@
+// components/my-machines.tsx
 "use client"
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { useMiningState } from "@/hooks/use-mining-state"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Zap, Play, Cpu, BarChart3, DollarSign, Image as ImageIcon, Timer, CheckCircle, Clock, TrendingUp, Loader2 } from "lucide-react"
+import { Zap, Cpu, BarChart3, DollarSign, Image as ImageIcon, Timer, CheckCircle, Clock, TrendingUp, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 
@@ -15,12 +15,11 @@ interface UserMachine {
   machine_type_id: string
   purchased_at: string
   is_active: boolean
-  activated_at?: string
-  last_claim_time?: string
+  activated_at: string | null
+  last_claim_time: string | null
   total_earned: number
   machine_types: {
     name: string
-    price: number
     daily_earnings: number
     monthly_earnings: number
     description: string
@@ -28,47 +27,17 @@ interface UserMachine {
     image_url: string
   }
 }
-interface MiningMachine {
-  isActive: boolean;
-  lastClaim: string | null;
-  activatedAt: string | null;
-  dailyEarnings: number;
-  name: string;
-  image: string | null;
-  canClaim: boolean;
-  progress: number;
-  hoursRemaining: number;
-  timeRemaining: string;
-}
 
 interface MyMachinesProps {
-  onWatchAd?: (machineId: string, machineName: string) => void;
+  onRefresh?: () => void;
 }
 
-// ADD THIS: Define the props interface
-interface MyMachinesProps {
-  onWatchAd?: (machineId: string, machineName: string) => void;
-  onActivateMachine?: (machineId: string) => void;
-  onClaimEarnings?: (machineId: string) => void;
-  miningMachines?: Record<string, MiningMachine>;
-  activatingMachine?: string | null;
-  claimingMachine?: string | null;
-}
-
-export function MyMachines({ onWatchAd }: MyMachinesProps) {
-  const { user } = useAuth()
-  const {
-    miningStates,
-    localClaiming,
-    initializeMachineState,
-    activateMachine,
-    claimEarnings
-  } = useMiningState()
-  
-  const [adModalOpen, setAdModalOpen] = useState(false)
-  const [selectedMachine, setSelectedMachine] = useState<{ id: string; name: string } | null>(null)
+export function MyMachines({ onRefresh }: MyMachinesProps) {
+  const { user, refreshUser } = useAuth()
   const [userMachines, setUserMachines] = useState<UserMachine[]>([])
   const [loading, setLoading] = useState(true)
+  const [activatingMachine, setActivatingMachine] = useState<string | null>(null)
+  const [claimingMachine, setClaimingMachine] = useState<string | null>(null)
 
   useEffect(() => {
     loadUserMachines()
@@ -90,7 +59,6 @@ export function MyMachines({ onWatchAd }: MyMachinesProps) {
           total_earned,
           machine_types (
             name,
-            price,
             daily_earnings,
             monthly_earnings,
             description,
@@ -106,22 +74,12 @@ export function MyMachines({ onWatchAd }: MyMachinesProps) {
       const machinesWithDetails = (data || []).map(machine => ({
         ...machine,
         machine_types: Array.isArray(machine.machine_types) ? machine.machine_types[0] : machine.machine_types,
-        total_earned: machine.total_earned || 0
+        total_earned: machine.total_earned || 0,
+        activated_at: machine.activated_at,
+        last_claim_time: machine.last_claim_time
       }))
       
       setUserMachines(machinesWithDetails)
-      
-      // Initialize mining states for all user machines
-      machinesWithDetails.forEach(machine => {
-        const isNewMachine = !machine.last_claim_time && !machine.activated_at
-        if (!miningStates[machine.machine_type_id]) {
-          initializeMachineState(
-            machine.machine_type_id, 
-            machine.total_earned || 0, 
-            isNewMachine
-          )
-        }
-      })
       
     } catch (error) {
       console.error("Failed to load user machines:", error)
@@ -131,39 +89,115 @@ export function MyMachines({ onWatchAd }: MyMachinesProps) {
     }
   }
 
-  const handleActivate = (machineId: string) => {
-    console.log('🚀 Activating machine:', machineId)
-    activateMachine(machineId)
-    toast.success('Machine activated! 🚀 Mining started...')
-  }
-
-  const handleClaim = async (machineId: string) => {
+  // Start mining for a machine
+  const handleStartMining = async (machineId: string) => {
+    if (!user) return
+    setActivatingMachine(machineId)
+    
     try {
-      const machine = userMachines.find(m => m.machine_type_id === machineId)
-      if (!machine) {
-        toast.error('Machine not found')
-        return
-      }
+      const currentTime = new Date().toISOString()
+      
+      const { error } = await supabase
+        .from('user_machines')
+        .update({
+          is_active: true,
+          activated_at: currentTime,
+          last_claim_time: currentTime
+        })
+        .eq('id', machineId)
+        .eq('user_id', user.id)
 
-      const dailyEarnings = machine.machine_types.daily_earnings || 100
-      await claimEarnings(machineId, dailyEarnings)
-      toast.success(`💰 Successfully claimed ${dailyEarnings.toLocaleString()} XAF!`)
+      if (error) throw error
+
+      toast.success('Mining started! 🚀 Earnings will be available in 24 hours.')
+      await loadUserMachines()
+      if (onRefresh) onRefresh()
       
     } catch (error) {
-      console.error('Claim error:', error)
-      toast.error('Failed to claim earnings')
+      console.error('Error starting mining:', error)
+      toast.error('Failed to start mining')
+    } finally {
+      setActivatingMachine(null)
     }
   }
 
-  const handleWatchAdClick = (machineId: string, machineName: string) => {
-    if (onWatchAd) {
-      onWatchAd(machineId, machineName)
-    } else {
-      setSelectedMachine({ id: machineId, name: machineName })
-      setAdModalOpen(true)
+  // Claim earnings from a machine using API route
+  const handleClaimEarnings = async (machineId: string) => {
+    if (!user) return
+    setClaimingMachine(machineId)
+    
+    try {
+      const response = await fetch('/api/claim-earnings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userMachineId: machineId,
+          userId: user.id
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to claim earnings')
+      }
+
+      toast.success(`💰 ${result.message}`)
+      await refreshUser()
+      await loadUserMachines()
+      if (onRefresh) onRefresh()
+      
+    } catch (error: any) {
+      console.error('Error claiming earnings:', error)
+      toast.error(error.message || 'Failed to claim earnings')
+    } finally {
+      setClaimingMachine(null)
     }
   }
 
+  // Check if machine can claim earnings (24 hours passed since last claim)
+  const canClaimEarnings = (machine: UserMachine) => {
+    if (!machine.last_claim_time || !machine.is_active) return false
+    
+    const lastClaim = new Date(machine.last_claim_time)
+    const now = new Date()
+    const hoursSinceClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60)
+    
+    return hoursSinceClaim >= 24
+  }
+
+  // Calculate mining progress (0-100%)
+  const getMiningProgress = (machine: UserMachine) => {
+    if (!machine.last_claim_time || !machine.is_active) return 0
+    
+    const lastClaim = new Date(machine.last_claim_time)
+    const now = new Date()
+    const hoursSinceClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60)
+    
+    return Math.min((hoursSinceClaim / 24) * 100, 100)
+  }
+
+  // Calculate time remaining until claim is available
+  const getTimeRemaining = (machine: UserMachine) => {
+    if (!machine.last_claim_time || !machine.is_active) return '24h 0m'
+    
+    const lastClaim = new Date(machine.last_claim_time)
+    const now = new Date()
+    const hoursSinceClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60)
+    const hoursRemaining = Math.max(0, 24 - hoursSinceClaim)
+    
+    const hours = Math.floor(hoursRemaining)
+    const minutes = Math.floor((hoursRemaining % 1) * 60)
+    
+    return `${hours}h ${minutes}m`
+  }
+
+  // Check if machine is new (never activated)
+  const isNewMachine = (machine: UserMachine) => {
+    return !machine.activated_at && !machine.is_active
+  }
 
   const getGradientClass = (machineId: string) => {
     const gradients: Record<string, string> = {
@@ -185,26 +219,6 @@ export function MyMachines({ onWatchAd }: MyMachinesProps) {
     return <IconComponent className="h-6 w-6 text-white" />
   }
 
-  // Calculate available earnings for display
-  const getAvailableEarnings = (machineId: string) => {
-    const miningState = miningStates[machineId]
-    const machine = userMachines.find(m => m.machine_type_id === machineId)
-    
-    if (!miningState || !machine) return 0
-    
-    // New machines show 0 until activated
-    if (miningState.isNewMachine) {
-      return 0
-    }
-    
-    // Only show earnings when mining is complete
-    if (miningState.canClaim) {
-      return machine.machine_types.daily_earnings
-    }
-    
-    return 0
-  }
-
   if (loading) {
     return (
       <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
@@ -224,252 +238,250 @@ export function MyMachines({ onWatchAd }: MyMachinesProps) {
   }
 
   return (
-    <>
-      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
-        <CardHeader>
+    <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+      <CardHeader>
+        <div className="flex items-center justify-between">
           <CardTitle className="flex items-center space-x-2">
             <Zap className="h-6 w-6 text-purple-400" />
             <span className="text-xl text-white">My AI Gaming Machines</span>
           </CardTitle>
-          <p className="text-slate-300 text-sm">
-            Manage your AI-powered gaming machines and track their performance
-          </p>
-        </CardHeader>
-        <CardContent>
-          {userMachines.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <div className="bg-slate-800/50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                <Zap className="h-10 w-10 opacity-50" />
-              </div>
-              <p className="text-slate-300 text-lg font-semibold mb-2">No machines owned yet</p>
-              <p className="text-sm text-slate-400">
-                Purchase your first AI gaming machine to start earning automatically!
-              </p>
+        </div>
+        <p className="text-slate-300 text-sm">
+          Manage your AI-powered gaming machines and track their performance
+        </p>
+      </CardHeader>
+      <CardContent>
+        {userMachines.length === 0 ? (
+          <div className="text-center py-12 text-slate-400">
+            <div className="bg-slate-800/50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+              <Zap className="h-10 w-10 opacity-50" />
             </div>
-          ) : (
-            <div className="space-y-6">
-              {userMachines.map((machine, index) => {
-                const machineData = machine.machine_types
-                const gradientClass = getGradientClass(machine.machine_type_id)
-                
-                const miningState = miningStates[machine.machine_type_id] || {
-                  isActive: false,
-                  progress: 0,
-                  timeRemaining: '24h 0m',
-                  canClaim: false,
-                  totalEarned: 0,
-                  isNewMachine: true
-                }
+            <p className="text-slate-300 text-lg font-semibold mb-2">No machines owned yet</p>
+            <p className="text-sm text-slate-400">
+              Purchase your first AI gaming machine to start earning automatically!
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {userMachines.map((machine, index) => {
+              const machineData = machine.machine_types
+              const gradientClass = getGradientClass(machine.machine_type_id)
+              const canClaim = canClaimEarnings(machine)
+              const progress = getMiningProgress(machine)
+              const timeRemaining = getTimeRemaining(machine)
+              const isNew = isNewMachine(machine)
+              const isMining = machine.is_active && !canClaim
 
-                const availableEarnings = getAvailableEarnings(machine.machine_type_id)
-                const isClaiming = localClaiming === machine.machine_type_id
-
-                return (
-                  <Card
-                    key={machine.id}
-                    className="bg-slate-800/50 border-slate-700 hover:border-slate-600 transition-all duration-300 hover:shadow-lg"
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-6">
-                        <div className="flex items-center space-x-4">
-                          <div className={`p-4 bg-gradient-to-r ${gradientClass} rounded-xl shadow-lg`}>
-                            {getMachineIcon(index)}
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-white text-xl">{machineData.name}</h3>
-                            <p className="text-sm text-slate-300">4K Ultra Gaming AI • Premium Network Access</p>
-                            <p className="text-xs text-slate-400 mt-1">
-                              Purchased: {new Date(machine.purchased_at).toLocaleDateString()}
-                            </p>
-                          </div>
+              return (
+                <Card
+                  key={machine.id}
+                  className="bg-slate-800/50 border-slate-700 hover:border-slate-600 transition-all duration-300 hover:shadow-lg"
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="flex items-center space-x-4">
+                        <div className={`p-4 bg-gradient-to-r ${gradientClass} rounded-xl shadow-lg`}>
+                          {getMachineIcon(index)}
                         </div>
-                        <div className="flex flex-col items-end space-y-2">
-                          {miningState.isActive ? (
-                            <Badge variant="default" className="bg-blue-500/10 text-blue-300 border-blue-500/20 px-3 py-1">
-                              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse mr-2"></div>
-                              Mining Active
-                            </Badge>
-                          ) : miningState.isNewMachine ? (
-                            <Badge variant="default" className="bg-purple-500/10 text-purple-300 border-purple-500/20 px-3 py-1">
-                              <Zap className="h-3 w-3 mr-1" />
-                              New Machine
-                            </Badge>
-                          ) : (
-                            <Badge variant="default" className="bg-amber-500/10 text-amber-300 border-amber-500/20 px-3 py-1">
-                              <Clock className="h-3 w-3 mr-1" />
-                              Ready to Start
-                            </Badge>
-                          )}
-                          
-                          {miningState.canClaim && (
-                            <Badge variant="default" className="bg-green-500/10 text-green-300 border-green-500/20 px-3 py-1">
-                              <TrendingUp className="h-3 w-3 mr-1" />
-                              Ready to Claim!
-                            </Badge>
-                          )}
+                        <div>
+                          <h3 className="font-bold text-white text-xl">{machineData.name}</h3>
+                          <p className="text-sm text-slate-300">4K Ultra Gaming AI • Premium Network Access</p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Purchased: {new Date(machine.purchased_at).toLocaleDateString()}
+                            {machine.activated_at && (
+                              <> • Activated: {new Date(machine.activated_at).toLocaleDateString()}</>
+                            )}
+                          </p>
                         </div>
                       </div>
-
-                      {/* Machine Image */}
-                      <div className="aspect-video rounded-xl overflow-hidden mb-6 shadow-lg relative">
-                        {machineData.image_url ? (
-                          <img
-                            src={machineData.image_url}
-                            alt={machineData.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement
-                              target.src = "/placeholder.svg"
-                            }}
-                          />
+                      <div className="flex flex-col items-end space-y-2">
+                        {isMining ? (
+                          <Badge variant="default" className="bg-blue-500/10 text-blue-300 border-blue-500/20 px-3 py-1">
+                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse mr-2"></div>
+                            Mining Active
+                          </Badge>
+                        ) : isNew ? (
+                          <Badge variant="default" className="bg-purple-500/10 text-purple-300 border-purple-500/20 px-3 py-1">
+                            <Zap className="h-3 w-3 mr-1" />
+                            New Machine
+                          </Badge>
                         ) : (
-                          <div className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
-                            <ImageIcon className="h-12 w-12 text-white opacity-50" />
-                          </div>
+                          <Badge variant="default" className="bg-amber-500/10 text-amber-300 border-amber-500/20 px-3 py-1">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Ready to Start
+                          </Badge>
                         )}
                         
-                        {/* Mining Progress Overlay */}
-                        {miningState.isActive && (
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-3">
-                            <div className="flex items-center justify-between text-sm text-white mb-2">
-                              <div className="flex items-center space-x-2">
-                                <Timer className="h-4 w-4" />
-                                <span>{miningState.timeRemaining}</span>
-                              </div>
-                              <span className="text-green-400 font-bold">{Math.round(miningState.progress)}%</span>
+                        {canClaim && (
+                          <Badge variant="default" className="bg-green-500/10 text-green-300 border-green-500/20 px-3 py-1">
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            Ready to Claim!
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Machine Image */}
+                    <div className="aspect-video rounded-xl overflow-hidden mb-6 shadow-lg relative">
+                      {machineData.image_url ? (
+                        <img
+                          src={machineData.image_url}
+                          alt={machineData.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
+                          <ImageIcon className="h-12 w-12 text-white opacity-50" />
+                        </div>
+                      )}
+                      
+                      {/* Mining Progress Overlay */}
+                      {isMining && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-3">
+                          <div className="flex items-center justify-between text-sm text-white mb-2">
+                            <div className="flex items-center space-x-2">
+                              <Timer className="h-4 w-4" />
+                              <span>{timeRemaining}</span>
                             </div>
-                            <div className="w-full bg-slate-600 rounded-full h-2">
-                              <div 
-                                className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${miningState.progress}%` }}
-                              ></div>
-                            </div>
+                            <span className="text-green-400 font-bold">{Math.round(progress)}%</span>
                           </div>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-slate-700/30 rounded-lg p-4 text-center">
-                          <div className="text-xs text-slate-400 mb-1">Available Now</div>
-                          <div className="text-lg font-bold text-green-400">
-                            {availableEarnings.toLocaleString()} XAF
+                          <div className="w-full bg-slate-600 rounded-full h-2">
+                            <div 
+                              className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${progress}%` }}
+                            ></div>
                           </div>
                         </div>
+                      )}
+                    </div>
 
-                        <div className="bg-slate-700/30 rounded-lg p-4 text-center">
-                          <div className="text-xs text-slate-400 mb-1">Daily Rate</div>
-                          <div className="text-lg font-bold text-amber-400">
-                            {machineData.daily_earnings?.toLocaleString() || '0'} XAF
-                          </div>
-                        </div>
-
-                        <div className="bg-slate-700/30 rounded-lg p-4 text-center">
-                          <div className="text-xs text-slate-400 mb-1">Total Earned</div>
-                          <div className="text-lg font-bold text-yellow-400">
-                            {miningState.totalEarned.toLocaleString()} XAF
-                          </div>
-                        </div>
-
-                        <div className="bg-slate-700/30 rounded-lg p-4 text-center">
-                          <div className="text-xs text-slate-400 mb-1">Status</div>
-                          <div className={`text-lg font-bold ${
-                            miningState.canClaim ? 'text-green-400' : 
-                            miningState.isActive ? 'text-blue-400' : 
-                            miningState.isNewMachine ? 'text-purple-400' : 'text-amber-400'
-                          }`}>
-                            {miningState.canClaim ? 'Ready!' : 
-                             miningState.isActive ? 'Mining' : 
-                             miningState.isNewMachine ? 'New' : 'Ready to Start'}
-                          </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                      <div className="bg-slate-700/30 rounded-lg p-4 text-center">
+                        <div className="text-xs text-slate-400 mb-1">Available Now</div>
+                        <div className="text-lg font-bold text-green-400">
+                          {canClaim ? machineData.daily_earnings.toLocaleString() : '0'} XAF
                         </div>
                       </div>
 
-                      {/* Mining Action Buttons */}
-                      <div className="pt-4 border-t border-slate-700 space-y-3">
-                        {miningState.canClaim ? (
-                          <Button
-                            size="lg"
-                            onClick={() => handleClaim(machine.machine_type_id)}
-                            disabled={isClaiming}
-                            className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 font-bold text-lg py-4 shadow-lg"
-                          >
-                            {isClaiming ? (
-                              <>
-                                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                Claiming...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="h-5 w-5 mr-2" />
-                                Claim {availableEarnings.toLocaleString()} XAF
-                              </>
-                            )}
-                          </Button>
-                        ) : miningState.isActive ? (
-                          <Button
-                            size="lg"
-                            disabled
-                            className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 font-bold text-lg py-4 shadow-lg"
-                          >
-                            <Timer className="h-5 w-5 mr-2" />
-                            Mining... {miningState.timeRemaining}
-                          </Button>
-                        ) : (
-                          <Button
-                            size="lg"
-                            onClick={() => handleActivate(machine.machine_type_id)}
-                            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 font-bold text-lg py-4 shadow-lg"
-                          >
-                            <Zap className="h-5 w-5 mr-2" />
-                            Start Mining
-                          </Button>
-                        )}
-
-                        {/* Optional Watch Ad Button */}
-                        {onWatchAd && !miningState.isActive && (
-                          <Button
-                            size="lg"
-                            variant="outline"
-                            onClick={() => handleWatchAdClick(machine.machine_type_id, machineData.name)}
-                            className="w-full bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border-cyan-500/30 font-bold py-3 shadow-lg"
-                          >
-                            <Play className="h-5 w-5 mr-2" />
-                            Watch Ad & Earn Bonus
-                          </Button>
-                        )}
+                      <div className="bg-slate-700/30 rounded-lg p-4 text-center">
+                        <div className="text-xs text-slate-400 mb-1">Daily Rate</div>
+                        <div className="text-lg font-bold text-amber-400">
+                          {machineData.daily_earnings.toLocaleString()} XAF
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
 
-              <Card className="bg-gradient-to-r from-slate-800/50 to-slate-700/50 border-slate-600">
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <h4 className="font-bold text-white text-xl mb-4">Fleet Performance Summary</h4>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <div className="text-slate-400 text-sm">Total Machines</div>
-                        <div className="text-cyan-400 font-bold text-2xl">{userMachines.length}</div>
+                      <div className="bg-slate-700/30 rounded-lg p-4 text-center">
+                        <div className="text-xs text-slate-400 mb-1">Total Earned</div>
+                        <div className="text-lg font-bold text-yellow-400">
+                          {machine.total_earned.toLocaleString()} XAF
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-slate-400 text-sm">Total Earned</div>
-                        <div className="text-green-400 font-bold text-2xl">
-                          {userMachines.reduce((sum, m) => {
-                            const miningState = miningStates[m.machine_type_id]
-                            return sum + (miningState?.totalEarned || 0)
-                          }, 0).toLocaleString()} XAF
+
+                      <div className="bg-slate-700/30 rounded-lg p-4 text-center">
+                        <div className="text-xs text-slate-400 mb-1">Status</div>
+                        <div className={`text-lg font-bold ${
+                          canClaim ? 'text-green-400' : 
+                          isMining ? 'text-blue-400' : 
+                          isNew ? 'text-purple-400' : 'text-amber-400'
+                        }`}>
+                          {canClaim ? 'Ready!' : 
+                           isMining ? 'Mining' : 
+                           isNew ? 'New' : 'Ready to Start'}
                         </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-    </>
+                    {/* Mining Action Buttons */}
+                    <div className="pt-4 border-t border-slate-700">
+                      {canClaim ? (
+                        <Button
+                          size="lg"
+                          onClick={() => handleClaimEarnings(machine.id)}
+                          disabled={claimingMachine === machine.id}
+                          className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 font-bold text-lg py-4 shadow-lg"
+                        >
+                          {claimingMachine === machine.id ? (
+                            <>
+                              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                              Claiming...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-5 w-5 mr-2" />
+                              Claim {machineData.daily_earnings.toLocaleString()} XAF
+                            </>
+                          )}
+                        </Button>
+                      ) : isMining ? (
+                        <Button
+                          size="lg"
+                          disabled
+                          className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 font-bold text-lg py-4 shadow-lg"
+                        >
+                          <Timer className="h-5 w-5 mr-2" />
+                          Mining... {timeRemaining}
+                        </Button>
+                      ) : (
+                        <Button
+                          size="lg"
+                          onClick={() => handleStartMining(machine.id)}
+                          disabled={activatingMachine === machine.id}
+                          className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 font-bold text-lg py-4 shadow-lg"
+                        >
+                          {activatingMachine === machine.id ? (
+                            <>
+                              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                              Starting...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-5 w-5 mr-2" />
+                              Start Mining
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+
+            {/* Fleet Summary */}
+            <Card className="bg-gradient-to-r from-slate-800/50 to-slate-700/50 border-slate-600">
+              <CardContent className="p-6">
+                <div className="text-center">
+                  <h4 className="font-bold text-white text-xl mb-4">Fleet Performance Summary</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div>
+                      <div className="text-slate-400 text-sm">Total Machines</div>
+                      <div className="text-cyan-400 font-bold text-2xl">{userMachines.length}</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 text-sm">Active Machines</div>
+                      <div className="text-green-400 font-bold text-2xl">
+                        {userMachines.filter(m => m.is_active).length}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 text-sm">Ready to Claim</div>
+                      <div className="text-amber-400 font-bold text-2xl">
+                        {userMachines.filter(m => canClaimEarnings(m)).length}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 text-sm">Total Earned</div>
+                      <div className="text-green-400 font-bold text-2xl">
+                        {userMachines.reduce((sum, m) => sum + (m.total_earned || 0), 0).toLocaleString()} XAF
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

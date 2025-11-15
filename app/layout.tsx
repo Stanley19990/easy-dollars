@@ -22,16 +22,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-  <html lang="en" className={dmSans.variable}>
-      <head>
-        <style>{`
-html {
-  font-family: ${dmSans.style.fontFamily};
-  --font-sans: ${dmSans.variable};
-}
-        `}</style>
-      </head>
-      <body className={dmSans.className}>
+    <html lang="en" className={dmSans.variable} suppressHydrationWarning>
+      <body className={`${dmSans.className} antialiased`} suppressHydrationWarning>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

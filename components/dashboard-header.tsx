@@ -1,3 +1,4 @@
+// components/dashboard-header.tsx
 "use client"
 
 import { useAuth } from "@/hooks/use-auth"
@@ -23,6 +24,22 @@ export function DashboardHeader() {
 
   const isAdmin = user?.email ? authService.isAdmin(user.email) : false
 
+  // Get user's display name - fallback to username, then email, then "User"
+  const getDisplayName = () => {
+    if (user?.user_metadata?.full_name) return user.user_metadata.full_name.split(" ")[0]
+    if (user?.user_metadata?.username) return user.user_metadata.username
+    if (user?.email) return user.email.split("@")[0]
+    return "User"
+  }
+
+  // Get user's first initial for avatar
+  const getUserInitial = () => {
+    if (user?.user_metadata?.full_name) return user.user_metadata.full_name.charAt(0).toUpperCase()
+    if (user?.user_metadata?.username) return user.user_metadata.username.charAt(0).toUpperCase()
+    if (user?.email) return user.email.charAt(0).toUpperCase()
+    return "U"
+  }
+
   return (
     <>
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm">
@@ -36,12 +53,19 @@ export function DashboardHeader() {
                 </h1>
               </Link>
               <div className="hidden lg:block text-slate-400 text-sm">
-                Welcome, {user?.full_name?.split(" ")[0] || "User"}
+                Welcome, {getDisplayName()}
               </div>
             </div>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-2 lg:space-x-4">
+              <Link href="/social-links">
+                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-cyan-400">
+                  <Users className="h-4 w-4 lg:mr-2" />
+                  <span className="hidden lg:inline">Social Links</span>
+                </Button>
+              </Link>
+
               <Link href="/referrals">
                 <Button variant="ghost" size="sm" className="text-slate-400 hover:text-purple-400">
                   <Users className="h-4 w-4 lg:mr-2" />
@@ -75,7 +99,7 @@ export function DashboardHeader() {
                   onClick={() => setProfileModalOpen(true)}
                 >
                   <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs lg:text-sm">
-                    {user?.full_name?.charAt(0) || "U"}
+                    {getUserInitial()}
                   </AvatarFallback>
                 </Avatar>
 
@@ -93,7 +117,7 @@ export function DashboardHeader() {
                 onClick={() => setProfileModalOpen(true)}
               >
                 <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs">
-                  {user?.full_name?.charAt(0) || "U"}
+                  {getUserInitial()}
                 </AvatarFallback>
               </Avatar>
               <Button
@@ -111,7 +135,14 @@ export function DashboardHeader() {
           {mobileMenuOpen && (
             <div className="md:hidden mt-4 pb-4 border-t border-slate-800">
               <div className="flex flex-col space-y-2 pt-4">
-                <div className="text-slate-400 text-sm mb-2 px-2">Welcome, {user?.full_name || "User"}</div>
+                <div className="text-slate-400 text-sm mb-2 px-2">Welcome, {getDisplayName()}</div>
+
+                <Link href="/social-links" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-cyan-400">
+                    <Users className="h-4 w-4 mr-3" />
+                    Social Links
+                  </Button>
+                </Link>
 
                 <Link href="/referrals" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-purple-400">
