@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -86,8 +85,24 @@ export async function POST(request: NextRequest) {
     })
 
     if (!response.ok) {
-      // Handle Fapshi API errors
-      throw new Error(responseData.message || `Payment failed: ${response.status}`)
+      // Handle Fapshi API errors - Check for insufficient balance specifically
+      const errorMessage = responseData.message || responseData.error || `Payment failed: ${response.status}`
+      
+      // Check if this is an insufficient balance error
+      if (errorMessage.toLowerCase().includes('insufficient') || 
+          errorMessage.toLowerCase().includes('balance') ||
+          errorMessage.toLowerCase().includes('fund') ||
+          response.status === 402) { // 402 is Payment Required
+        
+        console.log('💸 Insufficient balance detected from Fapshi')
+        return NextResponse.json({
+          success: false,
+          error: 'Insufficient balance in your mobile money account. Please recharge your account and try again.'
+        }, { status: 400 })
+      }
+      
+      // For other Fapshi errors, return the original message
+      throw new Error(errorMessage)
     }
 
     // Save pending transaction to database
@@ -125,6 +140,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('❌ Secure payment error:', error)
+    
+    // Check if it's an insufficient balance error from our custom handling
+    if (error.message && error.message.includes('Insufficient balance')) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 400 }
+      )
+    }
     
     // Return generic error message to client (don't expose internal details)
     return NextResponse.json(

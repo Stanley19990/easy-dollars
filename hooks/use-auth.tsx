@@ -1,9 +1,9 @@
-// hooks/use-auth.tsx
+// hooks/use-auth.tsx - FIXED VERSION
 "use client"
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { User } from "@supabase/supabase-js"
-import { supabase, DatabaseUser } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 
 interface AuthContextType {
   user: User | null
@@ -69,6 +69,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     referralCode?: string
   ): Promise<{ user: User | null; error: string | null }> => {
     try {
+      console.log("🚀 Starting signup process...")
+      
+      // Step 1: Create auth user (this was working)
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -83,16 +86,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (error) {
+        console.error("❌ Auth signup failed:", error)
         return { user: null, error: error.message }
       }
 
-      if (data.user) {
-        setUser(data.user)
-        
-        // Create user profile in public.users table
-        const { error: profileError } = await supabase
+      if (!data.user) {
+        return { user: null, error: "No user data returned" }
+      }
+
+      console.log("✅ Auth user created:", data.user.id)
+      setUser(data.user)
+      
+      // Step 2: Create user profile in public.users table - IMPROVED VERSION
+      try {
+        // First, let's check if user already exists in public.users (safety check)
+        const { data: existingUser, error: checkError } = await supabase
           .from('users')
-          .upsert({
+          .select('id')
+          .eq('id', data.user.id)
+          .single()
+
+        // Only create if user doesn't exist
+        if (checkError || !existingUser) {
+          console.log("📝 Creating user profile in public.users...")
+          
+          const userProfile = {
             id: data.user.id,
             email: data.user.email,
             full_name: fullName,
@@ -105,26 +123,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             machines_owned: 0,
             social_media_completed: false,
             social_media_bonus_paid: false
-          })
+            // completed_social_links is handled by database default
+          }
 
-        if (profileError) {
-          console.error("Error creating user profile:", profileError)
+          const { error: profileError } = await supabase
+            .from('users')
+            .insert(userProfile)
+
+          if (profileError) {
+            console.error("❌ User profile creation failed:", profileError)
+            
+            // Try upsert as fallback
+            const { error: upsertError } = await supabase
+              .from('users')
+              .upsert(userProfile)
+              
+            if (upsertError) {
+              console.error("❌ User profile upsert also failed:", upsertError)
+              // Continue anyway - auth user was created successfully
+            } else {
+              console.log("✅ User profile created via upsert")
+            }
+          } else {
+            console.log("✅ User profile created successfully")
+          }
+        } else {
+          console.log("ℹ️ User already exists in public.users, skipping creation")
         }
 
-        // Process referral if code was provided
-        if (referralCode && data.user.id) {
-          try {
-            const { ReferralService } = await import('@/lib/referral-service')
-            await ReferralService.processReferralSignup(data.user.id, referralCode)
-          } catch (referralError) {
-            console.error("Error processing referral:", referralError)
-          }
+      } catch (profileError: any) {
+        console.error("💥 Exception creating user profile:", profileError)
+        // Continue anyway - the auth user was created successfully
+      }
+
+      // Step 3: Process referral if code was provided
+      if (referralCode && data.user.id) {
+        try {
+          console.log("🔄 Processing referral code:", referralCode)
+          const { ReferralService } = await import('@/lib/referral-service')
+          await ReferralService.processReferralSignup(data.user.id, referralCode)
+          console.log("✅ Referral processed successfully")
+        } catch (referralError) {
+          console.error("⚠️ Error processing referral:", referralError)
+          // Don't fail signup if referral processing fails
         }
       }
 
+      console.log("🎉 Signup completed successfully!")
       return { user: data.user, error: null }
+
     } catch (error: any) {
-      console.error("Sign up error:", error)
+      console.error("💥 Sign up error:", error)
       return { user: null, error: error.message || "An unexpected error occurred" }
     }
   }
