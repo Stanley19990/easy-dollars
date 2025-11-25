@@ -1,4 +1,4 @@
-// components/my-machines.tsx
+// components/my-machines.tsx - FIXED
 "use client"
 
 import { useState, useEffect } from "react"
@@ -41,6 +41,10 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
 
   useEffect(() => {
     loadUserMachines()
+    
+    // Auto-refresh every 60 seconds to update timers
+    const interval = setInterval(loadUserMachines, 60000)
+    return () => clearInterval(interval)
   }, [user])
 
   const loadUserMachines = async () => {
@@ -89,7 +93,6 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
     }
   }
 
-  // Start mining for a machine
   const handleStartMining = async (machineId: string) => {
     if (!user) return
     setActivatingMachine(machineId)
@@ -109,7 +112,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
 
       if (error) throw error
 
-      toast.success('Mining started! 🚀 Earnings will be available in 24 hours.')
+      toast.success('⛏️ Mining started! Come back in 24 hours to claim your earnings.')
       await loadUserMachines()
       if (onRefresh) onRefresh()
       
@@ -121,13 +124,15 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
     }
   }
 
-  // Claim earnings from a machine using API route
   const handleClaimEarnings = async (machineId: string) => {
     if (!user) return
     setClaimingMachine(machineId)
     
     try {
-      const response = await fetch('/api/claim-earnings', {
+      console.log('🔄 Claiming earnings for machine:', machineId)
+      
+      // FIXED: Changed to correct API path
+      const response = await fetch('/api/machines/claim-earnings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -139,25 +144,30 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
       })
 
       const result = await response.json()
+      console.log('📥 Claim response:', result)
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to claim earnings')
       }
 
       toast.success(`💰 ${result.message}`)
-      await refreshUser()
-      await loadUserMachines()
+      
+      // Refresh everything
+      await Promise.all([
+        refreshUser(),
+        loadUserMachines()
+      ])
+      
       if (onRefresh) onRefresh()
       
     } catch (error: any) {
-      console.error('Error claiming earnings:', error)
+      console.error('❌ Error claiming earnings:', error)
       toast.error(error.message || 'Failed to claim earnings')
     } finally {
       setClaimingMachine(null)
     }
   }
 
-  // Check if machine can claim earnings (24 hours passed since last claim)
   const canClaimEarnings = (machine: UserMachine) => {
     if (!machine.last_claim_time || !machine.is_active) return false
     
@@ -168,7 +178,6 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
     return hoursSinceClaim >= 24
   }
 
-  // Calculate mining progress (0-100%)
   const getMiningProgress = (machine: UserMachine) => {
     if (!machine.last_claim_time || !machine.is_active) return 0
     
@@ -179,7 +188,6 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
     return Math.min((hoursSinceClaim / 24) * 100, 100)
   }
 
-  // Calculate time remaining until claim is available
   const getTimeRemaining = (machine: UserMachine) => {
     if (!machine.last_claim_time || !machine.is_active) return '24h 0m'
     
@@ -194,7 +202,6 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
     return `${hours}h ${minutes}m`
   }
 
-  // Check if machine is new (never activated)
   const isNewMachine = (machine: UserMachine) => {
     return !machine.activated_at && !machine.is_active
   }
@@ -230,7 +237,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div>
+            <Loader2 className="h-8 w-8 text-cyan-500 animate-spin" />
           </div>
         </CardContent>
       </Card>
@@ -313,7 +320,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                         )}
                         
                         {canClaim && (
-                          <Badge variant="default" className="bg-green-500/10 text-green-300 border-green-500/20 px-3 py-1">
+                          <Badge variant="default" className="bg-green-500/10 text-green-300 border-green-500/20 px-3 py-1 animate-pulse">
                             <TrendingUp className="h-3 w-3 mr-1" />
                             Ready to Claim!
                           </Badge>
@@ -341,7 +348,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                           <div className="flex items-center justify-between text-sm text-white mb-2">
                             <div className="flex items-center space-x-2">
                               <Timer className="h-4 w-4" />
-                              <span>{timeRemaining}</span>
+                              <span>{timeRemaining} remaining</span>
                             </div>
                             <span className="text-green-400 font-bold">{Math.round(progress)}%</span>
                           </div>
@@ -386,7 +393,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                         }`}>
                           {canClaim ? 'Ready!' : 
                            isMining ? 'Mining' : 
-                           isNew ? 'New' : 'Ready to Start'}
+                           isNew ? 'New' : 'Ready'}
                         </div>
                       </div>
                     </div>
@@ -398,7 +405,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                           size="lg"
                           onClick={() => handleClaimEarnings(machine.id)}
                           disabled={claimingMachine === machine.id}
-                          className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 font-bold text-lg py-4 shadow-lg"
+                          className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 font-bold text-lg py-6 shadow-lg"
                         >
                           {claimingMachine === machine.id ? (
                             <>
@@ -416,7 +423,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                         <Button
                           size="lg"
                           disabled
-                          className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 font-bold text-lg py-4 shadow-lg"
+                          className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 font-bold text-lg py-6 shadow-lg cursor-not-allowed"
                         >
                           <Timer className="h-5 w-5 mr-2" />
                           Mining... {timeRemaining}
@@ -426,7 +433,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                           size="lg"
                           onClick={() => handleStartMining(machine.id)}
                           disabled={activatingMachine === machine.id}
-                          className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 font-bold text-lg py-4 shadow-lg"
+                          className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 font-bold text-lg py-6 shadow-lg"
                         >
                           {activatingMachine === machine.id ? (
                             <>

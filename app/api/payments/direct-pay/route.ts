@@ -50,8 +50,44 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // ✅ FIX: Check if user already owns this machine type
+    const { data: existingMachine } = await supabase
+      .from('user_machines')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('machine_type_id', parseInt(machineId))
+      .single()
+
+    if (existingMachine) {
+      console.log('⚠️ User already owns this machine:', { userId, machineId })
+      return NextResponse.json(
+        { success: false, error: 'You already own this machine type' },
+        { status: 400 }
+      )
+    }
+
     // Generate unique external ID for tracking
     const externalId = `MACHINE_${machineId}_${userId}_${Date.now()}`
+
+    // ✅ FIX: Check for duplicate pending payments for same machine
+    const { data: pendingPayments } = await supabase
+      .from('transactions')
+      .select('id, external_id, status')
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .ilike('external_id', `MACHINE_${machineId}_${userId}_%`)
+      .gte('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString()) // Last 10 minutes
+
+    if (pendingPayments && pendingPayments.length > 0) {
+      console.log('⚠️ Duplicate payment attempt detected:', { userId, machineId })
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'You already have a pending payment for this machine. Please complete or wait for it to expire.'
+        },
+        { status: 409 }
+      )
+    }
 
     // Prepare payload according to Fapshi official documentation
     const fapshiPayload = {
@@ -117,6 +153,7 @@ export async function POST(request: NextRequest) {
       fapshi_trans_id: responseData.transId,
       metadata: {
         machine_id: machineId,
+        machine_name: machineName,
         phone: `***${phone.slice(-3)}`,
         medium: medium
       }
@@ -127,14 +164,15 @@ export async function POST(request: NextRequest) {
       // Don't fail the payment if database save fails
     }
 
-    // Process referral bonus if this is user's first machine purchase
-    await processReferralBonus(userId, machineId)
+    // ✅ FIX: REMOVED referral bonus processing from here
+    // It will be processed in webhook after successful payment confirmation
 
     // Return success response to client
     return NextResponse.json({
       success: true,
       message: responseData.message || 'Payment request sent to your phone!',
       transId: responseData.transId,
+      externalId: externalId,
       dateInitiated: responseData.dateInitiated
     })
 
@@ -154,116 +192,6 @@ export async function POST(request: NextRequest) {
       { success: false, error: 'Payment service temporarily unavailable. Please try again.' },
       { status: 500 }
     )
-  }
-}
-
-// Function to process referral bonus
-async function processReferralBonus(userId: string, machineId: string) {
-  try {
-    console.log('🎯 Checking for referral bonus for user:', userId)
-
-    // Check if user was referred by someone
-    const { data: referral, error: referralError } = await supabase
-      .from('referrals')
-      .select('*')
-      .eq('referred_id', userId)
-      .eq('status', 'pending')
-      .single()
-
-    if (referralError || !referral) {
-      console.log('No pending referral found for user:', userId)
-      return
-    }
-
-    // Check if this is user's first machine purchase
-    const { data: userMachines, error: machinesError } = await supabase
-      .from('user_machines')
-      .select('id')
-      .eq('user_id', userId)
-
-    if (machinesError) {
-      console.error('Error checking user machines:', machinesError)
-      return
-    }
-
-    // Only credit bonus for first machine purchase
-    if (userMachines && userMachines.length > 0) {
-      console.log('User already has machines, no bonus credited')
-      return
-    }
-
-    const referrerId = referral.referrer_id
-    const bonusAmount = 5 // $5 bonus
-
-    console.log('💰 Crediting $5 referral bonus to:', referrerId)
-
-    // Update referrer's wallet balance
-    const { data: referrer, error: referrerError } = await supabase
-      .from('users')
-      .select('wallet_balance')
-      .eq('id', referrerId)
-      .single()
-
-    if (referrerError) {
-      console.error('Error fetching referrer data:', referrerError)
-      return
-    }
-
-    const newBalance = (referrer.wallet_balance || 0) + bonusAmount
-
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ wallet_balance: newBalance })
-      .eq('id', referrerId)
-
-    if (updateError) {
-      console.error('Error updating referrer balance:', updateError)
-      return
-    }
-
-    // Update referral status to completed and set bonus
-    const { error: updateReferralError } = await supabase
-      .from('referrals')
-      .update({ 
-        status: 'completed',
-        bonus: bonusAmount,
-        completed_at: new Date().toISOString()
-      })
-      .eq('id', referral.id)
-
-    if (updateReferralError) {
-      console.error('Error updating referral:', updateReferralError)
-      // Don't fail the bonus if referral update fails
-    }
-
-    // Record bonus transaction for referrer
-    const { error: transactionError } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: referrerId,
-        type: 'referral_bonus',
-        description: `Referral bonus from ${userId}`,
-        amount: bonusAmount,
-        currency: 'USD',
-        status: 'completed',
-        external_id: `ref_bonus_${referral.id}_${Date.now()}`,
-        metadata: {
-          referred_user_id: userId,
-          machine_id: machineId,
-          referral_id: referral.id
-        }
-      })
-
-    if (transactionError) {
-      console.error('Error recording referral transaction:', transactionError)
-      // Don't fail the bonus if transaction recording fails
-    }
-
-    console.log('✅ Referral bonus credited successfully to:', referrerId)
-
-  } catch (error) {
-    console.error('❌ Referral bonus processing error:', error)
-    // Don't fail the main payment if referral bonus fails
   }
 }
 

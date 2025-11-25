@@ -8,13 +8,14 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { Loader2, Gift } from "lucide-react"
+import { Loader2, Gift, LogIn } from "lucide-react"
 
 interface SignupModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialReferralCode?: string
   onSuccess?: () => void
+  onSwitchToLogin?: () => void // ✅ NEW: Callback to switch to login modal
 }
 
 const africanCountries = [
@@ -23,7 +24,13 @@ const africanCountries = [
   "Madagascar", "Burkina Faso"
 ]
 
-export function SignupModal({ open, onOpenChange, initialReferralCode = "", onSuccess }: SignupModalProps) {
+export function SignupModal({ 
+  open, 
+  onOpenChange, 
+  initialReferralCode = "", 
+  onSuccess,
+  onSwitchToLogin // ✅ NEW: Destructure the callback prop
+}: SignupModalProps) {
   const { signUp } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -102,6 +109,14 @@ export function SignupModal({ open, onOpenChange, initialReferralCode = "", onSu
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     if (error) setError("")
+  }
+
+  // ✅ UPDATED: Handle switch to login modal
+  const handleSwitchToLogin = () => {
+    onOpenChange(false) // Close signup modal
+    if (onSwitchToLogin) {
+      onSwitchToLogin() // Trigger parent to open login modal
+    }
   }
 
   return (
@@ -251,6 +266,28 @@ export function SignupModal({ open, onOpenChange, initialReferralCode = "", onSu
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create Account
+          </Button>
+
+          {/* ✅ UPDATED: Login switch section */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-slate-600" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-slate-800 px-2 text-slate-400">
+                Already have an account?
+              </span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            onClick={handleSwitchToLogin}
+            variant="outline"
+            className="w-full border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300 hover:border-cyan-500/50"
+          >
+            <LogIn className="mr-2 h-4 w-4" />
+            Login Here
           </Button>
 
           <p className="text-xs text-slate-400 text-center">

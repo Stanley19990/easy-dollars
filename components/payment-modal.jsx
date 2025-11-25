@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CreditCard, Loader2, Phone, CheckCircle, Smartphone } from "lucide-react"
 import { toast } from "sonner"
-import { NotificationService } from '@/lib/notification-service'
 
 export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSuccess }) {
   const [processing, setProcessing] = useState(false)
@@ -26,6 +25,11 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
     // Validate phone format
     if (phoneWithoutSpaces.length !== 9 || !phoneWithoutSpaces.startsWith('6')) {
       toast.error("Please enter exactly 9 digits starting with 6 (like 677123456)")
+      return
+    }
+
+    // ✅ FIX: Prevent double submission
+    if (processing) {
       return
     }
 
@@ -57,6 +61,11 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
 
       if (!response.ok) {
         throw new Error(data.error || 'Payment creation failed')
+      }
+
+      // ✅ FIX: Pass transId and externalId to parent for polling
+      if (onPaymentSuccess) {
+        onPaymentSuccess(data.transId, data.externalId)
       }
 
       // Success - payment request sent to Fapshi
@@ -123,6 +132,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
                   placeholder="677123456"
                   maxLength={9}
                   type="tel"
+                  disabled={processing}
                 />
               </div>
               <p className="text-xs text-slate-400">
@@ -138,6 +148,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
                   type="button"
                   variant={selectedMethod === "mobile_money" ? "default" : "outline"}
                   onClick={() => setSelectedMethod("mobile_money")}
+                  disabled={processing}
                   className={selectedMethod === "mobile_money" ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-700 hover:bg-slate-600"}
                 >
                   MTN
@@ -146,6 +157,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
                   type="button"
                   variant={selectedMethod === "orange_money" ? "default" : "outline"}
                   onClick={() => setSelectedMethod("orange_money")}
+                  disabled={processing}
                   className={selectedMethod === "orange_money" ? "bg-orange-600 hover:bg-orange-700" : "bg-slate-700 hover:bg-slate-600"}
                 >
                   Orange
@@ -193,6 +205,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={processing}
             className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
           >
             Cancel

@@ -1,4 +1,3 @@
-// components/machine-marketplace.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -37,6 +36,9 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   const [databaseMachines, setDatabaseMachines] = useState<MachineType[]>([])
   const [imagesLoaded, setImagesLoaded] = useState<Record<string, boolean>>({})
   const [userMachines, setUserMachines] = useState<string[]>([])
+  // ✅ FIX: Track active payment for status polling
+  const [activePaymentTransId, setActivePaymentTransId] = useState<string | null>(null)
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
 
   // Fetch machines from database
   const fetchMachinesFromDatabase = async () => {
@@ -94,6 +96,93 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     }
   }, [user])
 
+  // ✅ FIX: Poll for payment status when there's an active payment
+  useEffect(() => {
+    if (!activePaymentTransId || !user) {
+      if (pollingInterval) {
+        clearInterval(pollingInterval)
+        setPollingInterval(null)
+      }
+      return
+    }
+
+    console.log('🔄 Starting payment status polling for:', activePaymentTransId)
+
+    const interval = setInterval(async () => {
+      await checkPaymentStatus(activePaymentTransId)
+    }, 3000) // Poll every 3 seconds
+
+    setPollingInterval(interval)
+
+    // Stop polling after 2 minutes
+    const timeout = setTimeout(() => {
+      if (interval) clearInterval(interval)
+      setActivePaymentTransId(null)
+      setPurchasing(null)
+      toast.info("Payment verification timed out. Please check your machines or refresh the page.")
+    }, 2 * 60 * 1000)
+
+    return () => {
+      clearInterval(interval)
+      clearTimeout(timeout)
+    }
+  }, [activePaymentTransId, user])
+
+  // ✅ FIX: Check payment status via transaction lookup
+  const checkPaymentStatus = async (transId: string) => {
+    try {
+      const { data: transaction, error } = await supabase
+        .from('transactions')
+        .select('status, metadata')
+        .eq('fapshi_trans_id', transId)
+        .single()
+
+      if (error) {
+        console.error('Error checking payment status:', error)
+        return
+      }
+
+      console.log('📊 Payment status:', transaction.status)
+
+      if (transaction.status === 'successful') {
+        // Payment successful - stop polling and refresh
+        console.log('✅ Payment confirmed successful!')
+        
+        if (pollingInterval) {
+          clearInterval(pollingInterval)
+          setPollingInterval(null)
+        }
+        
+        setActivePaymentTransId(null)
+        setPurchasing(null)
+        
+        // Refresh user machines
+        await fetchUserMachines()
+        await refreshUser()
+        
+        toast.success("🎉 Purchase successful! Your machine has been activated.")
+        
+        if (onPurchaseSuccess) {
+          onPurchaseSuccess()
+        }
+      } else if (transaction.status === 'failed' || transaction.status === 'cancelled') {
+        // Payment failed
+        if (pollingInterval) {
+          clearInterval(pollingInterval)
+          setPollingInterval(null)
+        }
+        
+        setActivePaymentTransId(null)
+        setPurchasing(null)
+        
+        toast.error("❌ Payment failed. Please try again.")
+      }
+      // If still pending, continue polling
+    } catch (error) {
+      console.error('Error in checkPaymentStatus:', error)
+    }
+  }
+
   // Check if user owns a machine
   const userOwnsMachine = (machineId: string) => {
     return userMachines.includes(machineId)
@@ -127,39 +216,16 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     return gradients[gradientType] || gradients["blue-cyan"]
   }
 
-  // Trigger referral bonus after machine purchase
-  const triggerReferralBonus = async (machineId: string) => {
-    if (!user) return
-    
-    try {
-      const response = await fetch('/api/referrals/claim', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          machineId: machineId
-        }),
-      })
-
-      const result = await response.json()
-      
-      if (result.success) {
-        console.log('✅ Referral bonus triggered:', result)
-      } else {
-        console.log('No referral bonus applicable:', result.message)
-      }
-    } catch (error) {
-      console.error('Error triggering referral bonus:', error)
-      // Don't fail the purchase if referral bonus fails
-    }
-  }
-
   // Handle purchase click
   const handlePurchaseClick = (machineId: string) => {
     if (!user) {
       toast.error("Please log in to purchase machines")
+      return
+    }
+
+    // ✅ FIX: Prevent multiple simultaneous purchases
+    if (purchasing) {
+      toast.info("Please wait for your current purchase to complete")
       return
     }
     
@@ -170,27 +236,29 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
       return
     }
 
+    // Check if already owned
+    if (userOwnsMachine(machineId)) {
+      toast.info("You already own this machine")
+      return
+    }
+
     setSelectedMachine(machine)
     setPaymentModalOpen(true)
   }
 
-  // Handle payment success
-  const handlePaymentSuccess = async (purchasedMachineId: string) => {
-    toast.success("Payment completed! Machine added to your collection.")
+  // ✅ FIX: Handle payment success with polling
+  const handlePaymentSuccess = async (transId: string, externalId: string) => {
+    console.log('💳 Payment initiated:', { transId, externalId })
+    
+    toast.success("Payment request sent! Please complete on your phone.")
+    toast.info("📱 We'll automatically update when payment is confirmed")
+    
     setPaymentModalOpen(false)
     setSelectedMachine(null)
     
-    // Trigger referral bonus for first machine purchase
-    await triggerReferralBonus(purchasedMachineId)
-    
-    // Refresh user data and owned machines
-    await refreshUser()
-    await fetchUserMachines()
-    
-    // Notify parent component
-    if (onPurchaseSuccess) {
-      onPurchaseSuccess()
-    }
+    // Start polling for payment status
+    setActivePaymentTransId(transId)
+    setPurchasing(selectedMachine?.id || null)
   }
 
   const getMachineIcon = (index: number) => {
@@ -218,6 +286,13 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
           <p className="text-slate-400 text-base mt-2">
             Purchase AI-powered gaming machines with ultra-realistic 4K animations that automatically watch ads and earn you money 24/7.
           </p>
+          {/* ✅ FIX: Show polling indicator */}
+          {activePaymentTransId && (
+            <div className="mt-2 flex items-center space-x-2 text-sm text-cyan-400">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
+              <span>Waiting for payment confirmation...</span>
+            </div>
+          )}
         </CardHeader>
 
         <CardContent>
@@ -228,13 +303,14 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
               const gradient = getGradientClasses(machine.gradient || "blue-cyan")
               const owned = userOwnsMachine(machine.id)
               const roiDays = calculateROI(machine.price, machine.daily_earnings)
+              const isProcessing = purchasing === machine.id
               
               return (
                 <Card
                   key={machine.id}
                   className={`bg-slate-800/50 border-slate-700 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/20 ${
                     !machine.is_available ? "opacity-90" : ""
-                  }`}
+                  } ${isProcessing ? "border-cyan-500 shadow-lg shadow-cyan-500/30" : ""}`}
                 >
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between mb-3">
@@ -252,6 +328,13 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
                           className="bg-green-500/20 text-green-400 border-0 font-bold text-sm px-3 py-1"
                         >
                           Owned
+                        </Badge>
+                      ) : isProcessing ? (
+                        <Badge
+                          variant="secondary"
+                          className="bg-cyan-500/20 text-cyan-400 border-0 font-bold text-sm px-3 py-1 animate-pulse"
+                        >
+                          Processing...
                         </Badge>
                       ) : (
                         <Badge
@@ -296,7 +379,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
                       
                       <div className="absolute top-3 right-3">
                         <div
-                          className={`w-3 h-3 ${!machine.is_available ? "bg-amber-400" : owned ? "bg-green-400" : "bg-blue-400"} rounded-full animate-pulse shadow-lg`}
+                          className={`w-3 h-3 ${!machine.is_available ? "bg-amber-400" : owned ? "bg-green-400" : isProcessing ? "bg-cyan-400" : "bg-blue-400"} rounded-full animate-pulse shadow-lg`}
                         ></div>
                       </div>
                       <div className="absolute bottom-3 left-3">
@@ -369,16 +452,18 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
                       ) : (
                         <Button
                           onClick={() => handlePurchaseClick(machine.id)}
-                          disabled={!machine.is_available || purchasing === machine.id}
+                          disabled={!machine.is_available || isProcessing || !!purchasing}
                           className={`w-full bg-gradient-to-r ${gradient.button} hover:opacity-90 disabled:opacity-50 font-bold text-lg py-6 shadow-lg transition-all duration-200 hover:scale-105`}
                         >
                           {!machine.is_available ? (
                             "Coming Soon"
-                          ) : purchasing === machine.id ? (
+                          ) : isProcessing ? (
                             <div className="flex items-center space-x-2">
                               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                              <span>Processing...</span>
+                              <span>Processing Payment...</span>
                             </div>
+                          ) : purchasing ? (
+                            "Please Wait..."
                           ) : (
                             <div className="flex items-center space-x-2">
                               <ShoppingCart className="h-5 w-5" />
@@ -419,7 +504,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
             name: user.user_metadata?.full_name || user.user_metadata?.username || "User",
             phone: user.user_metadata?.phone || ""
           }}
-          onPaymentSuccess={() => handlePaymentSuccess(selectedMachine.id)}
+          onPaymentSuccess={handlePaymentSuccess}
         />
       )}
     </>

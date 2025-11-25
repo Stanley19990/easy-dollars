@@ -84,6 +84,7 @@ const recordSocialMediaBonus = async (userId: string, amount: number) => {
 export default function SocialLinksPage() {
   const { user, refreshUser } = useAuth()
   const router = useRouter()
+  // ✅ FIX: Keep completed state only in local React state (not in database)
   const [completed, setCompleted] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(false)
   const [userData, setUserData] = useState<any>(null)
@@ -95,11 +96,12 @@ export default function SocialLinksPage() {
     }
   }, [user])
 
+  // ✅ FIX: Removed completed_social_links from query
   const loadUserData = async () => {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('completed_social_links, social_media_completed, social_media_bonus_paid, wallet_balance')
+        .select('social_media_completed, social_media_bonus_paid, wallet_balance')
         .eq('id', user?.id)
         .single()
 
@@ -107,51 +109,26 @@ export default function SocialLinksPage() {
 
       setUserData(data)
       
-      // Initialize completed state from database
-      if (data?.completed_social_links) {
-        const completedMap: Record<string, boolean> = {}
-        data.completed_social_links.forEach((linkId: string) => {
-          completedMap[linkId] = true
-        })
-        setCompleted(completedMap)
-      }
+      // ✅ FIX: Removed initialization from database
+      // Completed state is now only stored locally in component
+      
     } catch (error) {
       console.error('Error loading user data:', error)
+      toast.error("Failed to load user data")
     }
   }
 
+  // ✅ FIX: Only update local state, don't save to database
   const handleLinkClick = async (linkId: string, url: string) => {
     if (!user) return
 
     // Open in new tab
     window.open(url, '_blank', 'noopener,noreferrer')
     
-    // Mark as completed locally
+    // Mark as completed locally only
     setCompleted(prev => ({ ...prev, [linkId]: true }))
     
-    // Save to database immediately
-    try {
-      const currentLinks = userData?.completed_social_links || []
-      const newLinks = [...new Set([...currentLinks, linkId])]
-
-      const { error } = await supabase
-        .from('users')
-        .update({ 
-          completed_social_links: newLinks
-        })
-        .eq('id', user.id)
-
-      if (error) throw error
-
-      // Reload user data to get updated state
-      await loadUserData()
-      await refreshUser()
-      
-      toast.success("Link followed! Progress saved.")
-    } catch (error) {
-      console.error('Error saving link:', error)
-      toast.error("Failed to save progress")
-    }
+    toast.success("Link opened! Click 'Complete Task' when done.")
   }
 
   const handleSaveProgress = async () => {
@@ -160,36 +137,42 @@ export default function SocialLinksPage() {
     setLoading(true)
     
     try {
-      // Check if all required links are completed
+      // Check if all required links are completed (in local state)
       const requiredLinks = SOCIAL_MEDIA_LINKS.filter(link => link.required)
       const allRequiredCompleted = requiredLinks.every(link => completed[link.id])
 
-      if (allRequiredCompleted && !userData?.social_media_completed) {
-        // Mark social media as completed and check for bonus
-        const { error } = await supabase
-          .from('users')
-          .update({ 
-            social_media_completed: true,
-            // Add bonus if not already paid
-            ...(!userData?.social_media_bonus_paid && {
-              wallet_balance: (userData?.wallet_balance || 0) + 500,
-              social_media_bonus_paid: true
-            })
-          })
-          .eq('id', user.id)
-
-        if (error) throw error
-
-        // ✅ RECORD THE TRANSACTION
-        if (!userData?.social_media_bonus_paid) {
-          await recordSocialMediaBonus(user.id, 500)
-          toast.success("🎉 Congratulations! You earned 500 XAF bonus!")
-        } else {
-          toast.success("Social media task completed!")
-        }
-      } else {
-        toast.success("Progress saved successfully!")
+      if (!allRequiredCompleted) {
+        toast.error("Please follow all required channels first!")
+        setLoading(false)
+        return
       }
+
+      // Check if already completed
+      if (userData?.social_media_completed) {
+        toast.info("You've already completed this task!")
+        setLoading(false)
+        return
+      }
+
+      // Mark social media as completed and award bonus
+      const bonusAmount = 500
+      const newBalance = (userData?.wallet_balance || 0) + bonusAmount
+
+      const { error } = await supabase
+        .from('users')
+        .update({ 
+          social_media_completed: true,
+          social_media_bonus_paid: true,
+          wallet_balance: newBalance
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      // ✅ RECORD THE TRANSACTION
+      await recordSocialMediaBonus(user.id, bonusAmount)
+      
+      toast.success(`🎉 Congratulations! You earned ${bonusAmount} XAF bonus!`)
 
       // Reload user data
       await loadUserData()
@@ -197,7 +180,7 @@ export default function SocialLinksPage() {
       
     } catch (error: any) {
       console.error('Error saving progress:', error)
-      toast.error("Failed to save progress")
+      toast.error("Failed to complete task. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -345,26 +328,31 @@ export default function SocialLinksPage() {
           <div className="text-center">
             <Button
               onClick={handleSaveProgress}
-              disabled={loading}
-              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 px-8 py-3 text-lg font-bold"
+              disabled={loading || userData?.social_media_completed}
+              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 px-8 py-3 text-lg font-bold disabled:opacity-50"
               size="lg"
             >
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Saving Progress...
+                  Processing...
+                </>
+              ) : userData?.social_media_completed ? (
+                <>
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  Task Completed ✓
                 </>
               ) : (
                 <>
                   <CheckCircle className="h-5 w-5 mr-2" />
-                  {userData?.social_media_completed ? "Update Progress" : "Complete Task"}
+                  Complete Task & Claim 500 XAF
                 </>
               )}
             </Button>
             <p className="text-slate-400 mt-3 text-sm">
               {userData?.social_media_completed 
-                ? "Task completed! You can still update your progress."
-                : "Complete all required channels to earn 500 XAF bonus!"
+                ? "You've already completed this task and received your bonus!"
+                : "Follow all required channels, then click to claim your 500 XAF bonus!"
               }
             </p>
           </div>

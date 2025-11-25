@@ -1,20 +1,74 @@
+// components/referral-link.tsx - FIXED
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Share2, Copy, Check, MessageCircle, Mail } from "lucide-react"
+import { Share2, Copy, Check, MessageCircle, Mail, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { supabase } from "@/lib/supabase"
 
 export function ReferralLink() {
   const { user } = useAuth()
   const [copied, setCopied] = useState(false)
+  const [referralCode, setReferralCode] = useState<string>("")
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (user) {
+      loadReferralCode()
+    }
+  }, [user])
+
+  const loadReferralCode = async () => {
+    if (!user) return
+    
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('referral_code')
+        .eq('id', user.id)
+        .single()
+
+      if (error) {
+        console.error("Error loading referral code:", error)
+        toast.error("Failed to load referral code")
+      } else if (data?.referral_code) {
+        setReferralCode(data.referral_code)
+      }
+    } catch (err) {
+      console.error("Exception loading referral code:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (!user) return null
 
-  const referralLink = `https://easydollars.com/signup?ref=${user.referral_code}`
+  if (loading) {
+    return (
+      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 text-cyan-400 animate-spin" />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!referralCode) {
+    return (
+      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+        <CardContent className="py-8 text-center text-slate-400">
+          No referral code available
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const referralLink = `https://easydollars.com/signup?ref=${referralCode}`
 
   const copyToClipboard = async () => {
     try {
@@ -28,13 +82,13 @@ export function ReferralLink() {
   }
 
   const shareViaWhatsApp = () => {
-    const message = `Join me on Easy Dollars and start earning money by watching ads! Use my referral code: ${user.referral_code}\n\n${referralLink}`
+    const message = `Join me on Easy Dollars and start earning money by watching ads! Use my referral code: ${referralCode}\n\n${referralLink}`
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank")
   }
 
   const shareViaEmail = () => {
     const subject = "Join Easy Dollars and Start Earning!"
-    const body = `Hi!\n\nI've been using Easy Dollars to earn money by watching ads and it's amazing! You can earn up to 10x your investment in 30 days.\n\nUse my referral code: ${user.referral_code}\nSign up here: ${referralLink}\n\nLet's start earning together!`
+    const body = `Hi!\n\nI've been using Easy Dollars to earn money by watching ads and it's amazing! You can earn up to 10x your investment in 30 days.\n\nUse my referral code: ${referralCode}\nSign up here: ${referralLink}\n\nLet's start earning together!`
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
   }
 
@@ -50,7 +104,7 @@ export function ReferralLink() {
         <div className="space-y-4">
           <div className="bg-slate-800/50 rounded-lg p-4">
             <div className="text-sm text-slate-400 mb-2">Your Referral Code</div>
-            <div className="text-2xl font-bold text-cyan-400 text-center">{user.referral_code}</div>
+            <div className="text-2xl font-bold text-cyan-400 text-center">{referralCode}</div>
           </div>
 
           <div className="space-y-2">
@@ -91,7 +145,7 @@ export function ReferralLink() {
 
           <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-4">
             <div className="text-center">
-              <div className="text-lg font-bold text-purple-400 mb-1">$5 Bonus</div>
+              <div className="text-lg font-bold text-purple-400 mb-1">1000 XAF Bonus</div>
               <div className="text-sm text-slate-400">For each successful referral</div>
             </div>
           </div>

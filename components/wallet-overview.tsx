@@ -1,4 +1,4 @@
-// components/wallet-overview.tsx
+// components/wallet-overview.tsx - FIXED
 "use client"
 
 import { useAuth } from "@/hooks/use-auth"
@@ -38,13 +38,44 @@ export function WalletOverview() {
     totalDailyEarnings: 0,
     totalEarnedXAF: 0
   })
+  
+  // FIXED: Add state for real-time balance tracking
+  const [walletBalance, setWalletBalance] = useState(0)
+  const [totalEarned, setTotalEarned] = useState(0)
 
   // Type assertion to handle the user type mismatch
   const user = authUser as unknown as DatabaseUser
 
   useEffect(() => {
     if (user) {
+      // FIXED: Initialize balances from user object
+      setWalletBalance(user.wallet_balance || 0)
+      setTotalEarned(user.total_earned || 0)
       fetchStats()
+      
+      // FIXED: Set up real-time subscription for balance updates
+      const channel = supabase
+        .channel('wallet-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'users',
+            filter: `id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('💰 Wallet balance updated:', payload)
+            const newData = payload.new as DatabaseUser
+            setWalletBalance(newData.wallet_balance || 0)
+            setTotalEarned(newData.total_earned || 0)
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
   }, [user])
 
@@ -89,14 +120,11 @@ export function WalletOverview() {
         totalDailyEarnings += machineData?.daily_earnings || 0
       })
 
-      // Total earned is already in XAF in our database
-      const totalEarnedXAF = user.total_earned || 0
-
       setStats({
         ownedMachines: ownedMachines || 0,
         activeMachines: activeMachines || 0,
         totalDailyEarnings,
-        totalEarnedXAF
+        totalEarnedXAF: totalEarned // Use state value instead
       })
 
     } catch (error) {
@@ -108,6 +136,23 @@ export function WalletOverview() {
     setLoading(true)
     await refreshUser()
     await fetchStats()
+    
+    // FIXED: Manually fetch latest balance from database
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('wallet_balance, total_earned')
+        .eq('id', user.id)
+        .single()
+      
+      if (!error && data) {
+        setWalletBalance(data.wallet_balance || 0)
+        setTotalEarned(data.total_earned || 0)
+      }
+    } catch (error) {
+      console.error('Error refreshing balance:', error)
+    }
+    
     setLoading(false)
   }
 
@@ -115,18 +160,21 @@ export function WalletOverview() {
 
   return (
     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {/* Available Balance */}
+      {/* Available Balance - FIXED: Use state value */}
       <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
         <CardHeader className="flex items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-slate-400">Available Balance</CardTitle>
           <div className="flex items-center gap-2">
             <Wallet className="h-4 w-4 text-green-400" />
-            <RefreshCw className={`h-4 w-4 text-slate-400 cursor-pointer ${loading ? 'animate-spin' : ''}`} onClick={handleRefresh} />
+            <RefreshCw 
+              className={`h-4 w-4 text-slate-400 cursor-pointer hover:text-green-400 transition-colors ${loading ? 'animate-spin' : ''}`} 
+              onClick={handleRefresh} 
+            />
           </div>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-green-400">
-            {(user.wallet_balance || 0).toLocaleString()} XAF
+            {walletBalance.toLocaleString()} XAF
           </div>
           <p className="text-xs text-slate-500 mt-1">Available for withdrawal</p>
         </CardContent>
@@ -158,7 +206,7 @@ export function WalletOverview() {
         </CardContent>
       </Card>
 
-      {/* Total Earned */}
+      {/* Total Earned - FIXED: Use state value */}
       <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
         <CardHeader className="flex items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-slate-400">Total Earned</CardTitle>
@@ -166,7 +214,7 @@ export function WalletOverview() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-amber-400">
-            {stats.totalEarnedXAF.toLocaleString()} XAF
+            {totalEarned.toLocaleString()} XAF
           </div>
           <p className="text-xs text-slate-500 mt-1">Lifetime earnings</p>
         </CardContent>
