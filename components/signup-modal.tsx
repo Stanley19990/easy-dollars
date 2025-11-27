@@ -15,7 +15,7 @@ interface SignupModalProps {
   onOpenChange: (open: boolean) => void
   initialReferralCode?: string
   onSuccess?: () => void
-  onSwitchToLogin?: () => void // ✅ NEW: Callback to switch to login modal
+  onSwitchToLogin?: () => void
 }
 
 const africanCountries = [
@@ -29,7 +29,7 @@ export function SignupModal({
   onOpenChange, 
   initialReferralCode = "", 
   onSuccess,
-  onSwitchToLogin // ✅ NEW: Destructure the callback prop
+  onSwitchToLogin
 }: SignupModalProps) {
   const { signUp } = useAuth()
   const [loading, setLoading] = useState(false)
@@ -45,7 +45,6 @@ export function SignupModal({
     phone: "",
   })
 
-  // Update referral code when prop changes
   useEffect(() => {
     if (initialReferralCode) {
       setReferralCode(initialReferralCode)
@@ -57,7 +56,6 @@ export function SignupModal({
     setLoading(true)
     setError("")
 
-    // Validation checks
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
       setLoading(false)
@@ -111,41 +109,39 @@ export function SignupModal({
     if (error) setError("")
   }
 
-  // ✅ UPDATED: Handle switch to login modal
   const handleSwitchToLogin = () => {
-    onOpenChange(false) // Close signup modal
+    onOpenChange(false)
     if (onSwitchToLogin) {
-      onSwitchToLogin() // Trigger parent to open login modal
+      onSwitchToLogin()
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-800 neon-border text-cyan-300 max-w-md">
+      <DialogContent className="bg-slate-800 neon-border text-cyan-300 max-w-md w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold neon-text text-center">
+          <DialogTitle className="text-xl sm:text-2xl font-bold neon-text text-center">
             Join Easy Dollars
           </DialogTitle>
-          <DialogDescription className="text-center text-slate-400">
+          <DialogDescription className="text-center text-slate-400 text-sm sm:text-base px-2">
             Create your account and start earning with AI gaming machines
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 px-2 sm:px-0">
           {error && (
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            <div className="p-2 sm:p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs sm:text-sm">
               {error}
             </div>
           )}
 
-          {/* Referral Code Display */}
           {referralCode && (
-            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+            <div className="p-2 sm:p-3 rounded-lg bg-green-500/10 border border-green-500/20">
               <div className="flex items-center space-x-2 text-green-400">
-                <Gift className="h-4 w-4" />
-                <span className="text-sm font-medium">Referral Code Applied</span>
+                <Gift className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium">Referral Code Applied</span>
               </div>
-              <p className="text-green-300 text-sm mt-1">
+              <p className="text-green-300 text-xs sm:text-sm mt-1 break-all">
                 Using code: <strong>{referralCode}</strong>
               </p>
               <p className="text-green-200 text-xs mt-1">
@@ -155,21 +151,21 @@ export function SignupModal({
           )}
 
           <div>
-            <Label htmlFor="fullName" className="text-cyan-300">
+            <Label htmlFor="fullName" className="text-cyan-300 text-sm sm:text-base">
               Full Name
             </Label>
             <Input
               id="fullName"
               value={formData.fullName}
               onChange={(e) => handleInputChange('fullName', e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300"
+              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
               required
               placeholder="Enter your full name"
             />
           </div>
 
           <div>
-            <Label htmlFor="email" className="text-cyan-300">
+            <Label htmlFor="email" className="text-cyan-300 text-sm sm:text-base">
               Email
             </Label>
             <Input
@@ -177,23 +173,23 @@ export function SignupModal({
               type="email"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300"
+              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
               required
               placeholder="Enter your email"
             />
           </div>
 
           <div>
-            <Label htmlFor="country" className="text-cyan-300">
+            <Label htmlFor="country" className="text-cyan-300 text-sm sm:text-base">
               Country
             </Label>
             <Select value={formData.country} onValueChange={(value) => handleInputChange('country', value)}>
-              <SelectTrigger className="bg-slate-700 border-cyan-500 text-cyan-300">
+              <SelectTrigger className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto">
                 <SelectValue placeholder="Select your country" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectContent className="bg-slate-800 border-slate-700 max-h-[200px] sm:max-h-[300px]">
                 {africanCountries.map((country) => (
-                  <SelectItem key={country} value={country}>
+                  <SelectItem key={country} value={country} className="text-sm sm:text-base">
                     {country}
                   </SelectItem>
                 ))}
@@ -202,20 +198,20 @@ export function SignupModal({
           </div>
 
           <div>
-            <Label htmlFor="phone" className="text-cyan-300">
+            <Label htmlFor="phone" className="text-cyan-300 text-sm sm:text-base">
               Phone (Optional)
             </Label>
             <Input
               id="phone"
               value={formData.phone}
               onChange={(e) => handleInputChange('phone', e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300"
+              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
               placeholder="Enter your phone number"
             />
           </div>
 
           <div>
-            <Label htmlFor="password" className="text-cyan-300">
+            <Label htmlFor="password" className="text-cyan-300 text-sm sm:text-base">
               Password
             </Label>
             <Input
@@ -223,7 +219,7 @@ export function SignupModal({
               type="password"
               value={formData.password}
               onChange={(e) => handleInputChange('password', e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300"
+              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
               required
               placeholder="Create a password"
               minLength={6}
@@ -231,7 +227,7 @@ export function SignupModal({
           </div>
 
           <div>
-            <Label htmlFor="confirmPassword" className="text-cyan-300">
+            <Label htmlFor="confirmPassword" className="text-cyan-300 text-sm sm:text-base">
               Confirm Password
             </Label>
             <Input
@@ -239,22 +235,21 @@ export function SignupModal({
               type="password"
               value={formData.confirmPassword}
               onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300"
+              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
               required
               placeholder="Confirm your password"
             />
           </div>
 
-          {/* Manual Referral Code Input (optional) */}
           <div>
-            <Label htmlFor="referralCode" className="text-cyan-300">
+            <Label htmlFor="referralCode" className="text-cyan-300 text-sm sm:text-base">
               Referral Code (Optional)
             </Label>
             <Input
               id="referralCode"
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300"
+              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
               placeholder="Enter referral code if you have one"
             />
           </div>
@@ -262,13 +257,12 @@ export function SignupModal({
           <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold pulse-neon"
+            className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold pulse-neon h-10 sm:h-auto text-sm sm:text-base"
           >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {loading && <Loader2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />}
             Create Account
           </Button>
 
-          {/* ✅ UPDATED: Login switch section */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t border-slate-600" />
@@ -284,13 +278,13 @@ export function SignupModal({
             type="button"
             onClick={handleSwitchToLogin}
             variant="outline"
-            className="w-full border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300 hover:border-cyan-500/50"
+            className="w-full border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300 hover:border-cyan-500/50 h-10 sm:h-auto text-sm sm:text-base"
           >
-            <LogIn className="mr-2 h-4 w-4" />
+            <LogIn className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
             Login Here
           </Button>
 
-          <p className="text-xs text-slate-400 text-center">
+          <p className="text-xs text-slate-400 text-center px-2">
             By creating an account, you agree to our Terms of Service and Privacy Policy
           </p>
         </form>
