@@ -91,7 +91,10 @@ async function activateUserMachine(userId: string, externalId: string) {
   try {
     // Extract machine ID from externalId
     const parts = externalId.split('_')
-    if (parts.length < 3) return
+    if (parts.length < 3) {
+      console.error('❌ Invalid externalId format:', externalId)
+      return
+    }
     
     const machineId = parts[1]
 
@@ -106,7 +109,9 @@ async function activateUserMachine(userId: string, externalId: string) {
       .single()
 
     if (existingMachine) {
-      console.log('⚠️ Machine already activated')
+      console.log('⚠️ Machine already activated, skipping activation but checking referral')
+      // Still process referral in case it was missed
+      await processReferralBonus(userId, machineId)
       return
     }
 
@@ -131,7 +136,16 @@ async function activateUserMachine(userId: string, externalId: string) {
 
     console.log('✅ Machine activated:', userMachine.id)
 
-    // ✅ FIX: Process referral bonus AFTER successful payment (moved from direct-pay)
+    // Update user's machines_owned count
+    const { error: updateUserError } = await supabase.rpc('increment_machines_owned', {
+      user_id_param: userId
+    })
+
+    if (updateUserError) {
+      console.warn('⚠️ Could not update machines_owned count:', updateUserError)
+    }
+
+    // ✅ FIX: Process referral bonus AFTER successful payment
     await processReferralBonus(userId, machineId)
 
   } catch (error) {
@@ -139,12 +153,12 @@ async function activateUserMachine(userId: string, externalId: string) {
   }
 }
 
-// ✅ FIX: Referral bonus processing moved to webhook (after payment confirmation)
+// ✅ FIXED: Referral bonus processing with correct logic
 async function processReferralBonus(userId: string, machineId: string) {
   try {
     console.log('🎯 Checking for referral bonus for user:', userId)
 
-    // Check if user was referred by someone
+    // ✅ FIX: Check if user was referred by someone (with correct status check)
     const { data: referral, error: referralError } = await supabase
       .from('referrals')
       .select('*')
@@ -153,31 +167,36 @@ async function processReferralBonus(userId: string, machineId: string) {
       .single()
 
     if (referralError || !referral) {
-      console.log('No pending referral found for user:', userId)
+      console.log('ℹ️ No pending referral found for user:', userId)
       return
     }
 
-    // Check if this is user's first machine purchase
+    console.log('✅ Found pending referral:', referral.id)
+
+    // ✅ FIX: Check if this is user's FIRST machine purchase
     const { data: userMachines, error: machinesError } = await supabase
       .from('user_machines')
       .select('id')
       .eq('user_id', userId)
 
     if (machinesError) {
-      console.error('Error checking user machines:', machinesError)
+      console.error('❌ Error checking user machines:', machinesError)
       return
     }
 
-    // Only credit bonus for first machine purchase
-    if (userMachines && userMachines.length > 1) {
-      console.log('User already has machines, no bonus credited')
+    const machineCount = userMachines?.length || 0
+    console.log(`📊 User has ${machineCount} machine(s)`)
+
+    // ✅ FIX: Only credit bonus for FIRST machine purchase (exactly 1 machine)
+    if (machineCount !== 1) {
+      console.log(`⚠️ User has ${machineCount} machines, not their first purchase. No bonus credited.`)
       return
     }
 
     const referrerId = referral.referrer_id
-    const bonusAmount = 5 // $5 bonus
+    const bonusAmount = 1000 // 1000 XAF bonus
 
-    console.log('💰 Crediting $5 referral bonus to:', referrerId)
+    console.log('💰 Crediting 1000 XAF referral bonus to:', referrerId)
 
     // Update referrer's wallet balance
     const { data: referrer, error: referrerError } = await supabase
@@ -187,7 +206,7 @@ async function processReferralBonus(userId: string, machineId: string) {
       .single()
 
     if (referrerError) {
-      console.error('Error fetching referrer data:', referrerError)
+      console.error('❌ Error fetching referrer data:', referrerError)
       return
     }
 
@@ -199,11 +218,13 @@ async function processReferralBonus(userId: string, machineId: string) {
       .eq('id', referrerId)
 
     if (updateError) {
-      console.error('Error updating referrer balance:', updateError)
+      console.error('❌ Error updating referrer balance:', updateError)
       return
     }
 
-    // Update referral status to completed and set bonus
+    console.log('✅ Referrer balance updated:', { referrerId, newBalance })
+
+    // ✅ FIX: Update referral status to completed with timestamp
     const { error: updateReferralError } = await supabase
       .from('referrals')
       .update({ 
@@ -214,8 +235,11 @@ async function processReferralBonus(userId: string, machineId: string) {
       .eq('id', referral.id)
 
     if (updateReferralError) {
-      console.error('Error updating referral:', updateReferralError)
+      console.error('❌ Error updating referral:', updateReferralError)
+      return
     }
+
+    console.log('✅ Referral status updated to completed')
 
     // Record bonus transaction for referrer
     const { error: transactionError } = await supabase
@@ -223,9 +247,9 @@ async function processReferralBonus(userId: string, machineId: string) {
       .insert({
         user_id: referrerId,
         type: 'referral_bonus',
-        description: `Referral bonus from ${userId}`,
+        description: `Referral bonus from user ${userId}`,
         amount: bonusAmount,
-        currency: 'USD',
+        currency: 'XAF',
         status: 'completed',
         external_id: `ref_bonus_${referral.id}_${Date.now()}`,
         metadata: {
@@ -236,7 +260,28 @@ async function processReferralBonus(userId: string, machineId: string) {
       })
 
     if (transactionError) {
-      console.error('Error recording referral transaction:', transactionError)
+      console.error('❌ Error recording referral transaction:', transactionError)
+    } else {
+      console.log('✅ Referral transaction recorded')
+    }
+
+    // Create notification for referrer
+    const { error: notificationError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: referrerId,
+        title: '🎉 Referral Bonus Earned!',
+        message: `You earned 1,000 XAF because your referral purchased their first machine!`,
+        type: 'referral',
+        related_id: referral.id.toString(),
+        metadata: {
+          bonus_amount: bonusAmount,
+          referred_user_id: userId
+        }
+      })
+
+    if (notificationError) {
+      console.warn('⚠️ Could not create notification:', notificationError)
     }
 
     console.log('✅ Referral bonus credited successfully to:', referrerId)
