@@ -1,4 +1,4 @@
-// components/wallet-balance.tsx
+// components/wallet-balance.tsx - UPDATED WITH REAL-TIME BALANCE TRACKING
 "use client"
 
 import { useAuth } from "@/hooks/use-auth"
@@ -16,31 +16,19 @@ interface WalletStats {
   total_withdrawals: number
 }
 
-// Extended user type to include database fields
 interface DatabaseUser {
   id: string
-  created_at: string
-  email?: string
-  username?: string
-  full_name?: string
-  avatar_url?: string
-  country?: string
-  phone?: string
-  referral_code?: string
-  referred_by?: string
   wallet_balance: number
   ed_balance: number
   total_earned: number
-  machines_owned: number
-  last_earning_date?: string
-  social_media_completed: boolean
-  completed_social_links?: string[]
-  social_media_bonus_paid: boolean
 }
 
-export function WalletBalance({ wallet }: { wallet: number }) {
+export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
   const { user: authUser, refreshUser } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [walletBalance, setWalletBalance] = useState(initialWallet)
+  const [totalEarned, setTotalEarned] = useState(0)
+  const [edBalance, setEdBalance] = useState(0)
   const [stats, setStats] = useState<WalletStats>({
     total_machines: 0,
     active_machines: 0,
@@ -49,33 +37,72 @@ export function WalletBalance({ wallet }: { wallet: number }) {
     total_withdrawals: 0
   })
 
-  // Type assertion to handle the user type mismatch
   const user = authUser as unknown as DatabaseUser
+
+  // ✅ UPDATED: Real-time balance subscription
+  useEffect(() => {
+    if (!user) return
+    setWalletBalance(initialWallet)
+
+    const channel = supabase
+      .channel('wallet-balance-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('💰 Real-time balance update:', payload)
+          const newData = payload.new as DatabaseUser
+          setWalletBalance(newData.wallet_balance || 0)
+          setTotalEarned(newData.total_earned || 0)
+          setEdBalance(newData.ed_balance || 0)
+          toast.success('Balance updated!')
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user, initialWallet])
 
   const fetchWalletStats = async () => {
     if (!user) return
-    
     setLoading(true)
+
     try {
+      // Fetch latest balance from database
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('wallet_balance, total_earned, ed_balance')
+        .eq('id', user.id)
+        .single()
+
+      if (!userError && userData) {
+        setWalletBalance(userData.wallet_balance || 0)
+        setTotalEarned(userData.total_earned || 0)
+        setEdBalance(userData.ed_balance || 0)
+      }
+
       // Fetch total machines count
-      const { count: totalMachines, error: machinesError } = await supabase
+      const { count: totalMachines } = await supabase
         .from('user_machines')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
 
-      if (machinesError) throw machinesError
-
       // Fetch active machines count
-      const { count: activeMachines, error: activeError } = await supabase
+      const { count: activeMachines } = await supabase
         .from('user_machines')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('is_active', true)
 
-      if (activeError) throw activeError
-
-      // Fetch total daily earnings from all owned machines
-      const { data: userMachines, error: earningsError } = await supabase
+      // Fetch total daily earnings
+      const { data: userMachines } = await supabase
         .from('user_machines')
         .select(`
           machine_types (
@@ -84,37 +111,28 @@ export function WalletBalance({ wallet }: { wallet: number }) {
         `)
         .eq('user_id', user.id)
 
-      if (earningsError) throw earningsError
-
       let totalDailyEarnings = 0
       userMachines?.forEach(machine => {
-        const machineData = Array.isArray(machine.machine_types) 
-          ? machine.machine_types[0] 
+        const machineData = Array.isArray(machine.machine_types)
+          ? machine.machine_types[0]
           : machine.machine_types
         totalDailyEarnings += machineData?.daily_earnings || 0
       })
 
       // Fetch total withdrawals
-      const { data: withdrawals, error: withdrawalsError } = await supabase
+      const { data: withdrawals } = await supabase
         .from('withdrawals')
         .select('amount')
         .eq('user_id', user.id)
         .eq('status', 'completed')
 
-      if (withdrawalsError) {
-        console.log('No withdrawals found, continuing...')
-      }
-
       const totalWithdrawals = withdrawals?.reduce((sum, w) => sum + (w.amount || 0), 0) || 0
-
-      // Total earned is already in XAF in our database
-      const totalEarnedXAF = user.total_earned || 0
 
       setStats({
         total_machines: totalMachines || 0,
         active_machines: activeMachines || 0,
         total_daily_earnings: totalDailyEarnings,
-        total_earned_xaf: totalEarnedXAF,
+        total_earned_xaf: totalEarned,
         total_withdrawals: totalWithdrawals
       })
 
@@ -138,11 +156,8 @@ export function WalletBalance({ wallet }: { wallet: number }) {
 
   if (!user) return null
 
-  // All amounts are in XAF
-  const walletBalanceXAF = wallet || 0
-  const totalEarnedXAF = user.total_earned || 0
-  const edToXAF = (user.ed_balance || 0) * 60 // 1 ED = 60 XAF
-  const netEarningsXAF = totalEarnedXAF - stats.total_withdrawals
+  const edToXAF = edBalance * 60
+  const netEarningsXAF = totalEarned - stats.total_withdrawals
 
   return (
     <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
@@ -152,7 +167,7 @@ export function WalletBalance({ wallet }: { wallet: number }) {
             <Wallet className="h-5 w-5 text-green-400" />
             <span className="text-white">Wallet Overview</span>
           </div>
-          <RefreshCw 
+          <RefreshCw
             className={`h-4 w-4 text-cyan-400 cursor-pointer ${loading ? 'animate-spin' : ''}`}
             onClick={handleRefresh}
           />
@@ -172,7 +187,7 @@ export function WalletBalance({ wallet }: { wallet: number }) {
               </div>
             </div>
             <div className="text-3xl font-bold text-green-400 mb-2">
-              {walletBalanceXAF.toLocaleString()} XAF
+              {walletBalance.toLocaleString()} XAF
             </div>
             <p className="text-xs text-green-200/70">
               Available for withdrawals • Min: 3,000 XAF
@@ -188,7 +203,7 @@ export function WalletBalance({ wallet }: { wallet: number }) {
               </div>
             </div>
             <div className="text-3xl font-bold text-cyan-400 mb-2">
-              {(user.ed_balance || 0).toFixed(2)} ED
+              {edBalance.toFixed(2)} ED
             </div>
             <p className="text-xs text-cyan-200/70">
               ≈ {edToXAF.toLocaleString()} XAF • Earned from machines & ads
@@ -205,7 +220,7 @@ export function WalletBalance({ wallet }: { wallet: number }) {
               <span className="text-sm font-medium text-amber-300">Total Earned</span>
             </div>
             <div className="text-xl font-bold text-amber-400">
-              {totalEarnedXAF.toLocaleString()} XAF
+              {totalEarned.toLocaleString()} XAF
             </div>
             <p className="text-xs text-amber-200/70 mt-1">Lifetime earnings</p>
           </div>
@@ -249,22 +264,11 @@ export function WalletBalance({ wallet }: { wallet: number }) {
             <Info className="h-4 w-4 text-cyan-400" />
             <span className="text-sm font-semibold text-cyan-300">How Your Wallet Works</span>
           </div>
-          <div className="space-y-2 text-xs text-slate-300">
-            <p>
-              <strong className="text-green-400">Available Balance:</strong> Real money for withdrawals in XAF
-            </p>
-            <p>
-              <strong className="text-cyan-400">ED Tokens:</strong> Earned from machines & ad watching • 1 ED = 60 XAF
-            </p>
-            <p>
-              <strong className="text-purple-400">Withdrawals:</strong> Minimum 3,000 XAF • Processed within 24-48 hours
-            </p>
-            <p>
-              <strong className="text-blue-400">First Withdrawal:</strong> Requires account verification for security
-            </p>
-            <p>
-              <strong className="text-amber-400">Exchange Rate:</strong> 1 ED = 60 XAF
-            </p>
+          <div className="text-xs text-slate-400 space-y-2">
+            <p>• <strong>XAF (CFA Franc):</strong> Real money you can withdraw</p>
+            <p>• <strong>ED (Easy Dollars):</strong> Tokens earned from machines (1 ED = 60 XAF)</p>
+            <p>• Convert ED to XAF anytime using the converter</p>
+            <p>• Minimum withdrawal: 3,000 XAF</p>
           </div>
         </div>
       </CardContent>

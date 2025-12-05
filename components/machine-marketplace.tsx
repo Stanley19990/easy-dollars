@@ -1,3 +1,4 @@
+// components/machine-marketplace.tsx - UPDATED WITH REFERRAL BONUS TRIGGER
 "use client"
 
 import { useState, useEffect } from "react"
@@ -36,6 +37,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   const [databaseMachines, setDatabaseMachines] = useState<MachineType[]>([])
   const [imagesLoaded, setImagesLoaded] = useState<Record<string, boolean>>({})
   const [userMachines, setUserMachines] = useState<string[]>([])
+
   // ✅ FIX: Track active payment for status polling
   const [activePaymentTransId, setActivePaymentTransId] = useState<string | null>(null)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
@@ -49,10 +51,9 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         .order('id')
 
       if (error) throw error
-      
+
       if (data && data.length > 0) {
         setDatabaseMachines(data)
-        
         // Preload images
         data.forEach(machine => {
           if (machine.image_url) {
@@ -72,18 +73,15 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   // Fetch user's owned machines
   const fetchUserMachines = async () => {
     if (!user) return
-    
     try {
       const { data, error } = await supabase
         .from('user_machines')
         .select('machine_type_id')
         .eq('user_id', user.id)
-      
+
       if (error) throw error
-      
       const ownedMachineIds = data?.map(m => m.machine_type_id) || []
       setUserMachines(ownedMachineIds)
-      
     } catch (error) {
       console.error('Error fetching user machines:', error)
     }
@@ -107,7 +105,6 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     }
 
     console.log('🔄 Starting payment status polling for:', activePaymentTransId)
-
     const interval = setInterval(async () => {
       await checkPaymentStatus(activePaymentTransId)
     }, 3000) // Poll every 3 seconds
@@ -128,12 +125,12 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     }
   }, [activePaymentTransId, user])
 
-  // ✅ FIX: Check payment status via transaction lookup
+  // ✅ UPDATED: Check payment status via transaction lookup with referral bonus trigger
   const checkPaymentStatus = async (transId: string) => {
     try {
       const { data: transaction, error } = await supabase
         .from('transactions')
-        .select('status, metadata')
+        .select('status, metadata, user_id')
         .eq('fapshi_trans_id', transId)
         .single()
 
@@ -152,10 +149,28 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
           clearInterval(pollingInterval)
           setPollingInterval(null)
         }
-        
         setActivePaymentTransId(null)
         setPurchasing(null)
-        
+
+        // ✅ NEW: Process referral bonus immediately after successful payment
+        try {
+          console.log('🎁 Triggering referral bonus check for user:', transaction.user_id)
+          const bonusResponse = await fetch('/api/referrals/process-bonus', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: transaction.user_id })
+          })
+          
+          const bonusResult = await bonusResponse.json()
+          console.log('🎁 Referral bonus result:', bonusResult)
+          
+          if (bonusResult.success && bonusResult.bonusAmount) {
+            toast.success(`🎉 Your referrer earned ${bonusResult.bonusAmount.toLocaleString()} XAF!`)
+          }
+        } catch (bonusError) {
+          console.error('⚠️ Referral bonus error (non-critical):', bonusError)
+        }
+
         // Refresh user machines
         await fetchUserMachines()
         await refreshUser()
@@ -171,10 +186,8 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
           clearInterval(pollingInterval)
           setPollingInterval(null)
         }
-        
         setActivePaymentTransId(null)
         setPurchasing(null)
-        
         toast.error("❌ Payment failed. Please try again.")
       }
       // If still pending, continue polling
@@ -212,7 +225,6 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         button: "from-orange-500 to-red-500"
       }
     }
-    
     return gradients[gradientType] || gradients["blue-cyan"]
   }
 
@@ -228,9 +240,8 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
       toast.info("Please wait for your current purchase to complete")
       return
     }
-    
+
     const machine = databaseMachines.find((m) => m.id === machineId)
-    
     if (!machine) {
       toast.error("Machine not found. Please try again.")
       return
@@ -249,7 +260,6 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   // ✅ FIX: Handle payment success with polling
   const handlePaymentSuccess = async (transId: string, externalId: string) => {
     console.log('💳 Payment initiated:', { transId, externalId })
-    
     toast.success("Payment request sent! Please complete on your phone.")
     toast.info("📱 We'll automatically update when payment is confirmed")
     
@@ -286,6 +296,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
           <p className="text-slate-400 text-base mt-2">
             Purchase AI-powered gaming machines with ultra-realistic 4K animations that automatically watch ads and earn you money 24/7.
           </p>
+          
           {/* ✅ FIX: Show polling indicator */}
           {activePaymentTransId && (
             <div className="mt-2 flex items-center space-x-2 text-sm text-cyan-400">
@@ -294,7 +305,6 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
             </div>
           )}
         </CardHeader>
-
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {databaseMachines.map((machine, index) => {
@@ -304,7 +314,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
               const owned = userOwnsMachine(machine.id)
               const roiDays = calculateROI(machine.price, machine.daily_earnings)
               const isProcessing = purchasing === machine.id
-              
+
               return (
                 <Card
                   key={machine.id}
@@ -346,14 +356,12 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
                       )}
                     </div>
                   </CardHeader>
-
                   <CardContent className="space-y-5">
                     {/* Machine Image */}
                     <div
                       className={`aspect-square bg-gradient-to-br ${gradient.bg} rounded-xl flex items-center justify-center relative overflow-hidden shadow-lg transform transition-transform duration-500 hover:scale-105 hover:rotate-1`}
                     >
                       <div className="absolute inset-0 bg-black/10"></div>
-                      
                       {hasDatabaseImage ? (
                         <>
                           {!isImageLoaded && (
@@ -361,7 +369,6 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
                               <ImageIcon className="h-12 w-12 text-slate-500" />
                             </div>
                           )}
-                          
                           <img
                             src={machine.image_url}
                             alt={machine.name}
@@ -376,10 +383,17 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
                           <ImageIcon className="h-12 w-12 text-slate-500" />
                         </div>
                       )}
-                      
                       <div className="absolute top-3 right-3">
                         <div
-                          className={`w-3 h-3 ${!machine.is_available ? "bg-amber-400" : owned ? "bg-green-400" : isProcessing ? "bg-cyan-400" : "bg-blue-400"} rounded-full animate-pulse shadow-lg`}
+                          className={`w-3 h-3 ${
+                            !machine.is_available
+                              ? "bg-amber-400"
+                              : owned
+                              ? "bg-green-400"
+                              : isProcessing
+                              ? "bg-cyan-400"
+                              : "bg-blue-400"
+                          } rounded-full animate-pulse shadow-lg`}
                         ></div>
                       </div>
                       <div className="absolute bottom-3 left-3">
@@ -413,7 +427,6 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
                           {machine.daily_earnings.toLocaleString()} XAF
                         </span>
                       </div>
-
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <Calendar className="h-4 w-4 text-blue-400" />
@@ -423,7 +436,6 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
                           {machine.monthly_earnings.toLocaleString()} XAF
                         </span>
                       </div>
-
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <TrendingUp className="h-4 w-4 text-amber-400" />
