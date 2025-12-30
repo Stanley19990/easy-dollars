@@ -362,7 +362,7 @@ export default function VerificationStep2() {
     }
     
     try {
-      const referralLink = `https://easydollars.com/signup?ref=${referralCode}`
+      const referralLink = `https://easy-dollars.vercel.app/signup?ref=${referralCode}`
       await navigator.clipboard.writeText(referralLink)
       setReferralLinkCopied(true)
       toast.success("Referral link copied to clipboard!")
@@ -532,7 +532,7 @@ export default function VerificationStep2() {
 
   const progress = calculateProgress()
   const requirementsMet = checkRequirementsMet()
-  const referralLink = referralCode ? `https://easydollars.com/signup?ref=${referralCode}` : ""
+  const referralLink = referralCode ? `https://easy-dollars.vercel.app/signup?ref=${referralCode}` : ""
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950">
@@ -776,7 +776,7 @@ export default function VerificationStep2() {
                 <Label className="text-sm text-slate-300">Your Referral Link</Label>
                 <div className="flex gap-2">
                   <div className="flex-1 p-3 bg-slate-700 rounded-lg border border-slate-600 text-sm text-slate-300 overflow-x-auto">
-                    {referralLink || (referralCode ? `https://easydollars.com/signup?ref=${referralCode}` : "Loading...")}
+                    {referralLink || (referralCode ? `https://easy-dollars.vercel.app/signup?ref=${referralCode}` : "Loading...")}
                   </div>
                   <Button
                     onClick={copyReferralLink}
