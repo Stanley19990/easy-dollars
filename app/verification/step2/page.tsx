@@ -1,4 +1,4 @@
-// app/verification/step2/page.tsx - UPDATED TO USE REFERRALS TABLE WITH FIXED MACHINE COUNT
+// app/verification/step2/page.tsx - FULLY CORRECTED WITH PROPER REFERRAL LINK
 "use client"
 
 import { useState, useEffect } from "react"
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, ArrowRight, CheckCircle, Users, Target, AlertCircle, Sparkles, RefreshCw, UserPlus, Cpu, Clock, Loader2, DollarSign } from "lucide-react"
+import { ArrowLeft, ArrowRight, CheckCircle, Users, Target, AlertCircle, Sparkles, RefreshCw, UserPlus, Cpu, Clock, Loader2, DollarSign, Copy, Check } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/use-auth"
@@ -22,6 +22,8 @@ export default function VerificationStep2() {
   const [machinePurchaseDays, setMachinePurchaseDays] = useState<number>(0)
   const [hasPurchasedMachine, setHasPurchasedMachine] = useState(false)
   const [statsLoading, setStatsLoading] = useState(true)
+  const [referralCode, setReferralCode] = useState<string>("")
+  const [referralLinkCopied, setReferralLinkCopied] = useState(false)
   
   // Stats state
   const [stats, setStats] = useState({
@@ -39,12 +41,13 @@ export default function VerificationStep2() {
     }>
   })
 
-  // Check machine purchase eligibility on load
+  // Check machine purchase eligibility and load referral code on load
   useEffect(() => {
     if (user) {
       checkMachinePurchaseEligibility()
       loadVerificationData()
       loadReferralStats()
+      loadReferralCode()
     }
   }, [user])
 
@@ -104,6 +107,29 @@ export default function VerificationStep2() {
       setVerificationData(userData.verification_data || {})
     } catch (error) {
       console.error("Error loading verification data:", error)
+    }
+  }
+
+  const loadReferralCode = async () => {
+    if (!user) return
+    
+    try {
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('referral_code')
+        .eq('id', user.id)
+        .single()
+
+      if (error) {
+        console.error("Error loading referral code:", error)
+        return
+      }
+
+      if (userData?.referral_code) {
+        setReferralCode(userData.referral_code)
+      }
+    } catch (error) {
+      console.error("Exception loading referral code:", error)
     }
   }
 
@@ -217,7 +243,8 @@ export default function VerificationStep2() {
       // Process referral records
       const referralDetails = referralRecords?.map(ref => {
         const hasBonus = ref.bonus && ref.bonus > 0
-const hasMachine = (ref.referred_user?.[0]?.machines_owned > 0) || hasBonus        
+        const hasMachine = (ref.referred_user?.[0]?.machines_owned > 0) || hasBonus
+        
         return {
           id: ref.id,
           email: ref.referred_user?.[0]?.email || 'No email',
@@ -328,12 +355,22 @@ const hasMachine = (ref.referred_user?.[0]?.machines_owned > 0) || hasBonus
     toast.info("You can return to complete verification later")
   }
 
-  const copyReferralLink = () => {
-    if (!user) return
+  const copyReferralLink = async () => {
+    if (!referralCode) {
+      toast.error("No referral code available")
+      return
+    }
     
-    const referralLink = `${window.location.origin}/signup?ref=${user.id}`
-    navigator.clipboard.writeText(referralLink)
-    toast.success("Referral link copied to clipboard!")
+    try {
+      const referralLink = `https://easydollars.com/signup?ref=${referralCode}`
+      await navigator.clipboard.writeText(referralLink)
+      setReferralLinkCopied(true)
+      toast.success("Referral link copied to clipboard!")
+      setTimeout(() => setReferralLinkCopied(false), 2000)
+    } catch (error) {
+      console.error("Error copying referral link:", error)
+      toast.error("Failed to copy referral link")
+    }
   }
 
   const RequirementCard = ({ 
@@ -495,6 +532,7 @@ const hasMachine = (ref.referred_user?.[0]?.machines_owned > 0) || hasBonus
 
   const progress = calculateProgress()
   const requirementsMet = checkRequirementsMet()
+  const referralLink = referralCode ? `https://easydollars.com/signup?ref=${referralCode}` : ""
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950">
@@ -735,16 +773,27 @@ const hasMachine = (ref.referred_user?.[0]?.machines_owned > 0) || hasBonus
             <CardContent className="space-y-6">
               {/* Referral Link */}
               <div className="space-y-3">
-                <div className="text-sm text-slate-300">Your Referral Link</div>
+                <Label className="text-sm text-slate-300">Your Referral Link</Label>
                 <div className="flex gap-2">
                   <div className="flex-1 p-3 bg-slate-700 rounded-lg border border-slate-600 text-sm text-slate-300 overflow-x-auto">
-                    {user ? `${window.location.origin}/signup?ref=${user.id}` : "Loading..."}
+                    {referralLink || (referralCode ? `https://easydollars.com/signup?ref=${referralCode}` : "Loading...")}
                   </div>
                   <Button
                     onClick={copyReferralLink}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                    disabled={!referralCode}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Copy Link
+                    {referralLinkCopied ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy Link
+                      </>
+                    )}
                   </Button>
                 </div>
                 <p className="text-xs text-slate-500">
