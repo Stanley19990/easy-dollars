@@ -1,25 +1,121 @@
-// components/dashboard-header.tsx
+// components/dashboard-header.tsx - UPDATED VERIFICATION CHECK
 "use client"
 
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { LogOut, Settings, Bell, Wallet, Users, Shield, Menu, X } from "lucide-react"
+import { LogOut, Settings, Bell, Wallet, Users, Shield, Menu, X, CheckCircle, AlertCircle, Clock, Cpu } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { authService } from "@/lib/auth"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ProfileModal } from "@/components/profile-modal"
+import { VerificationModal } from "@/components/verification-modal"
+import { supabase } from "@/lib/supabase"
+import { toast } from "sonner"
 
 export function DashboardHeader() {
   const { user, signOut } = useAuth()
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
+  const [verificationModalOpen, setVerificationModalOpen] = useState(false)
+  const [verificationStatus, setVerificationStatus] = useState<string>("pending")
+  const [machinePurchaseDays, setMachinePurchaseDays] = useState<number>(0)
+  const [hasPurchasedMachine, setHasPurchasedMachine] = useState(false)
+  const [showVerificationPrompt, setShowVerificationPrompt] = useState(false)
+
+  // Load verification status and machine purchase eligibility
+  useEffect(() => {
+    if (user) {
+      loadVerificationStatus()
+      checkMachinePurchaseEligibility()
+    }
+  }, [user])
+
+  const loadVerificationStatus = async () => {
+    if (!user) return
+    
+    try {
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('verification_status, first_machine_purchase_date')
+        .eq('id', user.id)
+        .single()
+
+      if (error) throw error
+
+      if (userData) {
+        setVerificationStatus(userData.verification_status || 'pending')
+      }
+    } catch (error) {
+      console.error("Error loading verification status:", error)
+    }
+  }
+
+  const checkMachinePurchaseEligibility = async () => {
+    if (!user) return
+    
+    try {
+      // Check if user has any machines
+      const { data: userMachines, error } = await supabase
+        .from('user_machines')
+        .select('purchased_at')
+        .eq('user_id', user.id)
+        .limit(1)
+
+      if (error) throw error
+
+      const hasMachine = userMachines && userMachines.length > 0
+      setHasPurchasedMachine(hasMachine)
+
+      if (hasMachine) {
+        // Get first machine purchase date
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('first_machine_purchase_date')
+          .eq('id', user.id)
+          .single()
+
+        if (userError) throw userError
+
+        // Calculate days since first machine purchase
+        const purchaseDate = userData?.first_machine_purchase_date || userMachines[0].purchased_at
+        if (purchaseDate) {
+          const firstPurchase = new Date(purchaseDate)
+          const now = new Date()
+          const diffTime = Math.abs(now.getTime() - firstPurchase.getTime())
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+          setMachinePurchaseDays(diffDays)
+
+          // Show verification prompt if eligible and not verified
+          if (diffDays >= 7 && verificationStatus !== 'verified') {
+            setShowVerificationPrompt(true)
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error checking machine purchase eligibility:", error)
+    }
+  }
 
   const handleSignOut = async () => {
     await signOut()
     router.push("/")
+  }
+
+  const handleVerificationClick = () => {
+    if (!hasPurchasedMachine) {
+      toast.error("You need to purchase at least one machine before you can verify your account.")
+      return
+    }
+    
+    if (machinePurchaseDays < 7) {
+      toast.error(`You need to wait ${7 - machinePurchaseDays} more day(s) after purchasing your first machine to verify your account.`)
+      return
+    }
+    
+    setVerificationModalOpen(true)
   }
 
   const isAdmin = user?.email ? authService.isAdmin(user.email) : false
@@ -40,9 +136,113 @@ export function DashboardHeader() {
     return "U"
   }
 
+  // Get verification badge color and icon
+  const getVerificationBadge = () => {
+    switch (verificationStatus) {
+      case 'verified':
+        return {
+          icon: <CheckCircle className="h-4 w-4 text-green-400" />,
+          text: "Verified",
+          color: "text-green-400",
+          bgColor: "bg-green-400/10",
+          borderColor: "border-green-400/20"
+        }
+      case 'in_progress':
+        return {
+          icon: <Clock className="h-4 w-4 text-yellow-400" />,
+          text: "Verifying...",
+          color: "text-yellow-400",
+          bgColor: "bg-yellow-400/10",
+          borderColor: "border-yellow-400/20"
+        }
+      case 'rejected':
+        return {
+          icon: <AlertCircle className="h-4 w-4 text-red-400" />,
+          text: "Verification Failed",
+          color: "text-red-400",
+          bgColor: "bg-red-400/10",
+          borderColor: "border-red-400/20"
+        }
+      default:
+        if (!hasPurchasedMachine) {
+          return {
+            icon: <Cpu className="h-4 w-4 text-red-400" />,
+            text: "Buy Machine",
+            color: "text-red-400",
+            bgColor: "bg-red-400/10",
+            borderColor: "border-red-400/20"
+          }
+        } else if (machinePurchaseDays < 7) {
+          return {
+            icon: <Clock className="h-4 w-4 text-yellow-400" />,
+            text: `${machinePurchaseDays}/7 Days`,
+            color: "text-yellow-400",
+            bgColor: "bg-yellow-400/10",
+            borderColor: "border-yellow-400/20"
+          }
+        } else {
+          return {
+            icon: <AlertCircle className="h-4 w-4 text-cyan-400" />,
+            text: "Verify Account",
+            color: "text-cyan-400",
+            bgColor: "bg-cyan-400/10",
+            borderColor: "border-cyan-400/20"
+          }
+        }
+    }
+  }
+
+  const verificationBadge = getVerificationBadge()
+
   return (
     <>
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+        {/* Verification Prompt Banner */}
+        {showVerificationPrompt && (
+          <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-b border-cyan-500/20">
+            <div className="container mx-auto px-4 py-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="h-4 w-4 text-cyan-400" />
+                  <p className="text-sm text-cyan-300">
+                    <span className="font-semibold">Account Verification Available!</span> Verify now to start withdrawing your earnings.
+                  </p>
+                </div>
+                <Button
+                  onClick={handleVerificationClick}
+                  size="sm"
+                  className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
+                >
+                  Verify Now
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Machine Purchase Prompt */}
+        {!hasPurchasedMachine && (
+          <div className="bg-gradient-to-r from-red-500/10 to-pink-500/10 border-b border-red-500/20">
+            <div className="container mx-auto px-4 py-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Cpu className="h-4 w-4 text-red-400" />
+                  <p className="text-sm text-red-300">
+                    <span className="font-semibold">Purchase your first machine!</span> Buy a machine to start earning and unlock verification.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => router.push("/dashboard")}
+                  size="sm"
+                  className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white"
+                >
+                  View Machines
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between">
             {/* Logo and Welcome */}
@@ -52,13 +252,42 @@ export function DashboardHeader() {
                   Easy Dollars
                 </h1>
               </Link>
-              <div className="hidden lg:block text-slate-400 text-sm">
-                Welcome, {getDisplayName()}
+              <div className="hidden lg:flex items-center space-x-2">
+                <span className="text-slate-400 text-sm">
+                  Welcome, {getDisplayName()}
+                </span>
+                
+                {/* Verification Badge */}
+                <div 
+                  className={`flex items-center space-x-1 px-2 py-1 rounded-full ${verificationBadge.bgColor} border ${verificationBadge.borderColor} cursor-pointer hover:opacity-80 transition-opacity`}
+                  onClick={handleVerificationClick}
+                >
+                  {verificationBadge.icon}
+                  <span className={`text-xs font-medium ${verificationBadge.color}`}>
+                    {verificationBadge.text}
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-2 lg:space-x-4">
+              {/* Verification Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleVerificationClick}
+                className={`${verificationStatus === 'verified' ? 'text-green-400 hover:text-green-300' : 
+                  !hasPurchasedMachine ? 'text-red-400 hover:text-red-300' :
+                  machinePurchaseDays < 7 ? 'text-yellow-400 hover:text-yellow-300' :
+                  'text-cyan-400 hover:text-cyan-300'}`}
+              >
+                {verificationBadge.icon}
+                <span className="hidden lg:inline ml-2">
+                  {verificationBadge.text}
+                </span>
+              </Button>
+
               <Link href="/social-links">
                 <Button variant="ghost" size="sm" className="text-slate-400 hover:text-cyan-400">
                   <Users className="h-4 w-4 lg:mr-2" />
@@ -112,6 +341,17 @@ export function DashboardHeader() {
 
             {/* Mobile Menu Button */}
             <div className="md:hidden flex items-center space-x-2">
+              {/* Mobile Verification Badge */}
+              <div 
+                className={`flex items-center space-x-1 px-2 py-1 rounded-full ${verificationBadge.bgColor} border ${verificationBadge.borderColor} cursor-pointer hover:opacity-80 transition-opacity`}
+                onClick={handleVerificationClick}
+              >
+                {verificationBadge.icon}
+                <span className={`text-xs font-medium ${verificationBadge.color}`}>
+                  {verificationStatus === 'verified' ? '✓' : '!'}
+                </span>
+              </div>
+
               <Avatar
                 className="h-7 w-7 border-2 border-cyan-500/20 cursor-pointer hover:border-cyan-500/40 transition-colors"
                 onClick={() => setProfileModalOpen(true)}
@@ -136,6 +376,21 @@ export function DashboardHeader() {
             <div className="md:hidden mt-4 pb-4 border-t border-slate-800">
               <div className="flex flex-col space-y-2 pt-4">
                 <div className="text-slate-400 text-sm mb-2 px-2">Welcome, {getDisplayName()}</div>
+
+                {/* Mobile Verification Button */}
+                <Button
+                  variant="ghost"
+                  onClick={handleVerificationClick}
+                  className={`w-full justify-start ${verificationStatus === 'verified' ? 'text-green-400 hover:text-green-300' : 
+                    !hasPurchasedMachine ? 'text-red-400 hover:text-red-300' :
+                    machinePurchaseDays < 7 ? 'text-yellow-400 hover:text-yellow-300' :
+                    'text-cyan-400 hover:text-cyan-300'}`}
+                >
+                  {verificationBadge.icon}
+                  <span className="ml-3">
+                    {verificationBadge.text}
+                  </span>
+                </Button>
 
                 <Link href="/social-links" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-cyan-400">
@@ -199,6 +454,14 @@ export function DashboardHeader() {
       </header>
 
       <ProfileModal open={profileModalOpen} onOpenChange={setProfileModalOpen} />
+      <VerificationModal 
+        open={verificationModalOpen} 
+        onOpenChange={setVerificationModalOpen}
+        onVerificationComplete={() => {
+          setVerificationStatus('in_progress')
+          setShowVerificationPrompt(false)
+        }}
+      />
     </>
   )
 }
