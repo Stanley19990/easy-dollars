@@ -1,14 +1,14 @@
-// app/auth/callback/page.tsx
+// app/auth/callback/page.tsx - FIXED VERSION
 "use client"
 
-import { useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
-export default function AuthCallbackPage() {
+// Inner component that uses useSearchParams
+function AuthCallbackContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -20,7 +20,10 @@ export default function AuthCallbackPage() {
         const accessToken = params.get('access_token')
         const refreshToken = params.get('refresh_token')
         const type = params.get('type')
-        const next = searchParams.get('next') || '/dashboard'
+        
+        // Get query params from URL (not using useSearchParams)
+        const urlParams = new URLSearchParams(window.location.search)
+        const next = urlParams.get('next') || '/dashboard'
 
         if (accessToken && refreshToken) {
           // Set the session
@@ -53,15 +56,32 @@ export default function AuthCallbackPage() {
       }
     }
 
-    handleAuthCallback()
-  }, [router, searchParams])
+    // Small delay to ensure URL params are available
+    setTimeout(() => {
+      handleAuthCallback()
+    }, 100)
+  }, [router])
 
   return (
+    <div className="text-center">
+      <Loader2 className="h-8 w-8 text-cyan-400 animate-spin mx-auto mb-4" />
+      <p className="text-slate-400">Completing authentication...</p>
+    </div>
+  )
+}
+
+// Main component with Suspense boundary
+export default function AuthCallbackPage() {
+  return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="h-8 w-8 text-cyan-400 animate-spin mx-auto mb-4" />
-        <p className="text-slate-400">Completing authentication...</p>
-      </div>
+      <Suspense fallback={
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 text-cyan-400 animate-spin mx-auto mb-4" />
+          <p className="text-slate-400">Loading...</p>
+        </div>
+      }>
+        <AuthCallbackContent />
+      </Suspense>
     </div>
   )
 }
