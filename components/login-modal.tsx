@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
-import { Loader2 } from "lucide-react"
+import { Loader2, Key } from "lucide-react"
 
 interface LoginModalProps {
   open: boolean
@@ -48,6 +48,16 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleForgotPassword = () => {
+    onOpenChange(false)
+    router.push("/forgot-password")
+  }
+
+  const handleSignup = () => {
+    onOpenChange(false)
+    router.push("/signup")
   }
 
   return (
@@ -93,6 +103,18 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
             />
           </div>
 
+          {/* Forgot Password Link */}
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              className="text-xs text-cyan-400 hover:text-cyan-300 hover:underline flex items-center justify-end gap-1"
+            >
+              <Key className="h-3 w-3" />
+              Forgot Password?
+            </button>
+          </div>
+
           <Button
             type="submit"
             disabled={loading}
@@ -106,10 +128,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
             Don't have an account?{" "}
             <button
               type="button"
-              onClick={() => {
-                onOpenChange(false)
-                // Trigger signup modal here if needed
-              }}
+              onClick={handleSignup}
               className="text-cyan-400 hover:text-cyan-300 underline"
             >
               Sign up here
