@@ -1,4 +1,4 @@
-// app/update-password/page.tsx
+// app/update-password/page.tsx - UPDATED
 "use client"
 
 import { useState, useEffect } from "react"
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Lock, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
+import { Lock, CheckCircle, AlertCircle, Loader2, Home, LogIn } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 
@@ -68,12 +68,8 @@ export default function UpdatePasswordPage() {
       // Sign out the user after password update
       await supabase.auth.signOut()
       
-      toast.success("Password updated successfully! Please login with your new password.")
+      toast.success("Password updated successfully! You can now login with your new password.")
       setSuccess(true)
-      
-      setTimeout(() => {
-        router.push("/login")
-      }, 3000)
       
     } catch (error: any) {
       console.error("Error updating password:", error)
@@ -103,21 +99,45 @@ export default function UpdatePasswordPage() {
       <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center p-4">
         <Card className="w-full max-w-md border-green-500/20 bg-slate-800/50 backdrop-blur-sm">
           <CardContent className="p-8">
-            <div className="text-center">
+            <div className="text-center space-y-6">
               <div className="bg-green-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="h-8 w-8 text-green-400" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Password Updated!</h3>
-              <p className="text-slate-400 mb-6">
-                Your password has been successfully reset. You've been logged out and will be redirected to login...
+              <h3 className="text-xl font-bold text-white">Password Updated!</h3>
+              <p className="text-slate-400">
+                Your password has been successfully reset. You can now login with your new password.
               </p>
-              <Button
-                onClick={() => router.push("/login")}
-                variant="outline"
-                className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
-              >
-                Go to Login Now
-              </Button>
+              
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+                <p className="text-sm text-amber-200/80">
+                  <strong>Next Step:</strong> Go to the homepage and click "Login" to access your account.
+                </p>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <Button
+                  onClick={() => {
+                    // Redirect to homepage where login modal can be opened
+                    window.location.href = "/"
+                  }}
+                  className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                >
+                  <Home className="h-4 w-4 mr-2" />
+                  Go to Homepage
+                </Button>
+                
+                <Button
+                  onClick={() => {
+                    // Alternative: Try to login directly and go to dashboard
+                    router.push("/")
+                  }}
+                  variant="outline"
+                  className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
+                >
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Go to Homepage & Login
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -192,7 +212,7 @@ export default function UpdatePasswordPage() {
               disabled={loading}
               className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
             >
-              {loading ? "Updating..." : "Update Password & Logout"}
+              {loading ? "Updating..." : "Update Password"}
             </Button>
           </form>
         </CardContent>
