@@ -1,4 +1,4 @@
-// app/update-password/page.tsx - UPDATED
+// app/update-password/page.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -18,6 +18,7 @@ export default function UpdatePasswordPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -28,6 +29,11 @@ export default function UpdatePasswordPage() {
         toast.error("Invalid or expired reset link. Please request a new password reset.")
         router.push("/forgot-password")
         return
+      }
+      
+      // Get user email from session for auto-login
+      if (session.user.email) {
+        setUserEmail(session.user.email)
       }
       
       setCheckingAuth(false)
@@ -65,7 +71,29 @@ export default function UpdatePasswordPage() {
         throw error
       }
 
-      // Sign out the user after password update
+      // Try auto-login with the new password
+      if (userEmail) {
+        try {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: userEmail,
+            password: password
+          })
+          
+          if (signInError) {
+            throw signInError
+          }
+          
+          // Auto-login successful, go to dashboard
+          toast.success("Password updated successfully! Redirecting to dashboard...")
+          router.push("/dashboard")
+          return
+        } catch (autoLoginError: any) {
+          console.log("Auto-login failed, user will login manually:", autoLoginError.message)
+          // Continue with manual login flow
+        }
+      }
+      
+      // If auto-login fails or no email, sign out and show success
       await supabase.auth.signOut()
       
       toast.success("Password updated successfully! You can now login with your new password.")
@@ -108,34 +136,44 @@ export default function UpdatePasswordPage() {
                 Your password has been successfully reset. You can now login with your new password.
               </p>
               
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
-                <p className="text-sm text-amber-200/80">
-                  <strong>Next Step:</strong> Go to the homepage and click "Login" to access your account.
-                </p>
-              </div>
-
               <div className="space-y-3 pt-2">
                 <Button
-                  onClick={() => {
-                    // Redirect to homepage where login modal can be opened
-                    window.location.href = "/"
+                  onClick={async () => {
+                    if (userEmail) {
+                      try {
+                        // Try auto-login one more time
+                        const { error } = await supabase.auth.signInWithPassword({
+                          email: userEmail,
+                          password: password
+                        })
+                        
+                        if (!error) {
+                          router.push("/dashboard")
+                          return
+                        }
+                      } catch (error) {
+                        console.log("Auto-login failed, redirecting to homepage")
+                      }
+                    }
+                    
+                    // If auto-login fails, go to homepage
+                    router.push("/")
                   }}
                   className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
                 >
-                  <Home className="h-4 w-4 mr-2" />
-                  Go to Homepage
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Login & Go to Dashboard
                 </Button>
                 
                 <Button
                   onClick={() => {
-                    // Alternative: Try to login directly and go to dashboard
                     router.push("/")
                   }}
                   variant="outline"
                   className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
                 >
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Go to Homepage & Login
+                  <Home className="h-4 w-4 mr-2" />
+                  Go to Homepage
                 </Button>
               </div>
             </div>
@@ -163,7 +201,7 @@ export default function UpdatePasswordPage() {
             <div className="flex items-start space-x-2">
               <AlertCircle className="h-4 w-4 text-cyan-400 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-cyan-200/80">
-                You'll be automatically logged out after updating your password for security.
+                We'll try to automatically log you in with the new password. If that fails, you'll be redirected to the homepage to login manually.
               </p>
             </div>
           </div>
@@ -212,7 +250,14 @@ export default function UpdatePasswordPage() {
               disabled={loading}
               className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
             >
-              {loading ? "Updating..." : "Update Password"}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating Password...
+                </>
+              ) : (
+                "Update Password & Login"
+              )}
             </Button>
           </form>
         </CardContent>
