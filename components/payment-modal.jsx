@@ -5,13 +5,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CreditCard, Loader2, Phone, Smartphone } from "lucide-react"
+import { CreditCard, Loader2, Phone, Smartphone, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 
 export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSuccess }) {
   const [processing, setProcessing] = useState(false)
   const [phone, setPhone] = useState("")
   const [selectedMethod, setSelectedMethod] = useState("mobile_money")
+  const [errorMessage, setErrorMessage] = useState("")
 
   // Helper function to get discounted price
   const getDiscountedPrice = (price) => {
@@ -27,20 +28,35 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
     return [50000, 100000, 150000].includes(price)
   }
 
-  const finalPrice = getDiscountedPrice(machine.price)
-  const hasDiscount = isDiscounted(machine.price)
-  const discountAmount = machine.price - finalPrice
+  const finalPrice = getDiscountedPrice(machine?.price || 0)
+  const hasDiscount = isDiscounted(machine?.price || 0)
+  const discountAmount = (machine?.price || 0) - finalPrice
+
+  const validatePhone = (phoneNumber) => {
+    const clean = phoneNumber.replace(/\D/g, '')
+    // Cameroon numbers: 9 digits starting with 6, or 11 digits starting with 2376
+    return (clean.length === 9 && clean.startsWith('6')) || 
+           (clean.length === 11 && clean.startsWith('2376'))
+  }
+
+  const formatPhoneForAPI = (phoneNumber) => {
+    const clean = phoneNumber.replace(/\D/g, '')
+    // Return last 9 digits for Fapshi
+    return clean.slice(-9)
+  }
 
   const handlePayment = async () => {
+    setErrorMessage("")
+    
     if (!phone.trim()) {
+      setErrorMessage("Please enter your phone number")
       toast.error("Please enter your phone number")
       return
     }
 
-    const phoneWithoutSpaces = phone.replace(/\D/g, '')
-    
-    if (phoneWithoutSpaces.length !== 9 || !phoneWithoutSpaces.startsWith('6')) {
-      toast.error("Please enter exactly 9 digits starting with 6 (like 677123456)")
+    if (!validatePhone(phone)) {
+      setErrorMessage("Please enter a valid Cameroon number (e.g., 677123456 or 237677123456)")
+      toast.error("Invalid phone number format")
       return
     }
 
@@ -51,6 +67,8 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
     setProcessing(true)
 
     try {
+      const formattedPhone = formatPhoneForAPI(phone)
+      
       const response = await fetch('/api/payments/direct-pay', {
         method: 'POST',
         headers: {
@@ -61,7 +79,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           machineId: machine.id,
           userId: user.id,
           machineName: machine.name,
-          phone: phoneWithoutSpaces,
+          phone: formattedPhone,
           medium: selectedMethod === "mobile_money" ? "mobile money" : "orange money",
           userEmail: user.email,
           userName: user.name || user.email?.split('@')[0] || 'Customer'
@@ -71,31 +89,43 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Payment creation failed')
+        // Handle specific error messages
+        if (data.error?.toLowerCase().includes('insufficient') || 
+            data.error?.toLowerCase().includes('balance')) {
+          throw new Error('Insufficient balance in your mobile money account. Please recharge and try again.')
+        } else if (data.error?.toLowerCase().includes('phone') || 
+                   data.error?.toLowerCase().includes('number')) {
+          throw new Error('This phone number is not registered with mobile money. Please check and try again.')
+        } else {
+          throw new Error(data.error || 'Payment failed. Please try again.')
+        }
       }
 
       if (onPaymentSuccess) {
         onPaymentSuccess(data.transId, data.externalId)
       }
 
-      toast.success("✅ " + (data.message || 'Payment request sent to your phone!'))
-      toast.info("📱 Check your phone to complete the payment")
+      toast.success("✅ Payment request sent to your phone!")
+      toast.info("📱 Please check your phone and enter your PIN to complete the payment")
       
       onOpenChange(false)
 
     } catch (error) {
       console.error('❌ Payment error:', error)
-      toast.error("❌ " + (error.message || 'Payment failed'))
+      const errorMsg = error.message || 'Payment failed. Please try again.'
+      setErrorMessage(errorMsg)
+      toast.error("❌ " + errorMsg)
     } finally {
       setProcessing(false)
     }
   }
 
   const handlePhoneChange = (e) => {
-    const cleanValue = e.target.value.replace(/\D/g, '')
-    if (cleanValue.length <= 9) {
-      setPhone(cleanValue)
-    }
+    const value = e.target.value
+    // Allow digits, spaces, and +
+    const cleanValue = value.replace(/[^\d+]/g, '')
+    setPhone(cleanValue)
+    setErrorMessage("") // Clear error when user types
   }
 
   return (
@@ -140,15 +170,20 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
                   id="phone"
                   value={phone}
                   onChange={handlePhoneChange}
-                  className="pl-10 bg-slate-800 border-slate-700 text-white"
-                  placeholder="677123456"
-                  maxLength={9}
+                  className={`pl-10 bg-slate-800 border-slate-700 text-white ${errorMessage ? 'border-red-500' : ''}`}
+                  placeholder="677123456 or 237677123456"
                   type="tel"
                   disabled={processing}
                 />
               </div>
+              {errorMessage && (
+                <div className="flex items-center gap-1 text-red-400 text-xs mt-1">
+                  <AlertCircle className="h-3 w-3" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
               <p className="text-xs text-slate-400">
-                Enter 9-digit Cameroon number starting with 6
+                Enter Cameroon number (9 digits starting with 6, or 11 digits with 237)
               </p>
             </div>
 
@@ -213,7 +248,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
 
           <Button
             onClick={handlePayment}
-            disabled={processing || phone.length !== 9}
+            disabled={processing || !phone.trim()}
             className="w-full font-semibold py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:bg-slate-600 disabled:cursor-not-allowed"
           >
             {processing ? (

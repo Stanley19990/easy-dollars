@@ -6,6 +6,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Helper function to get discounted price
+const getDiscountedPrice = (price: number) => {
+  const discountMachines = [50000, 100000, 150000]
+  if (discountMachines.includes(price)) {
+    return Math.round(price * 0.95) // 5% discount
+  }
+  return price
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { 
@@ -19,11 +28,11 @@ export async function POST(request: NextRequest) {
       userName
     } = await request.json()
     
-    console.log('💰 Secure payment request received:', { 
+    console.log('💰 Payment request received:', { 
       amount, 
       machineId, 
       userId,
-      phone: `***${phone.slice(-3)}` // Hide full phone in logs
+      phone: phone ? `***${phone.slice(-3)}` : 'missing'
     })
 
     // Validate required fields
@@ -34,15 +43,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate phone format
-    if (phone.length !== 9 || !phone.startsWith('6')) {
+    // More flexible phone validation (allows 237 prefix, spaces, etc.)
+    const cleanPhone = phone.replace(/\D/g, '')
+    const isValidPhone = cleanPhone.length === 9 || 
+                        (cleanPhone.length === 11 && cleanPhone.startsWith('237'))
+    
+    if (!isValidPhone) {
       return NextResponse.json(
-        { success: false, error: 'Phone must be 9 digits starting with 6' },
+        { success: false, error: 'Invalid phone number format' },
         { status: 400 }
       )
     }
 
-    // ✅ FIX: Fetch machine with discount from database to validate price
+    // ✅ FIX: Get machine from database to validate price
     const { data: machine, error: machineError } = await supabase
       .from('machine_types')
       .select('*')
@@ -56,24 +69,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ✅ FIX: Calculate discounted price securely on backend
-    let finalPrice = machine.price
-    const discountMachines = [50000, 100000, 150000]
-    
-    if (discountMachines.includes(machine.price)) {
-      finalPrice = Math.round(machine.price * 0.95) // 5% discount
-    }
+    // ✅ FIX: Calculate correct discounted price
+    const correctPrice = getDiscountedPrice(machine.price)
 
-    // ✅ FIX: Verify the amount matches the discounted price
-    if (Math.abs(amount - finalPrice) > 1) { // Allow 1 XAF rounding difference
-      console.error('❌ Price mismatch:', { sentAmount: amount, expectedPrice: finalPrice })
+    // ✅ FIX: Validate the amount matches
+    if (Math.abs(amount - correctPrice) > 1) { // Allow 1 XAF rounding difference
+      console.error('❌ Price mismatch:', { 
+        sentAmount: amount, 
+        expectedPrice: correctPrice,
+        machinePrice: machine.price 
+      })
       return NextResponse.json(
         { success: false, error: 'Invalid price - please refresh the page' },
         { status: 400 }
       )
     }
 
-    // ✅ FIX: Check if user already owns this machine type
+    // Check if user already owns this machine
     const { data: existingMachine } = await supabase
       .from('user_machines')
       .select('id')
@@ -82,40 +94,19 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existingMachine) {
-      console.log('⚠️ User already owns this machine:', { userId, machineId })
       return NextResponse.json(
-        { success: false, error: 'You already own this machine type' },
+        { success: false, error: 'You already own this machine' },
         { status: 400 }
       )
     }
 
-    // Generate unique external ID for tracking
+    // Generate unique external ID
     const externalId = `MACHINE_${machineId}_${userId}_${Date.now()}`
 
-    // ✅ FIX: Check for duplicate pending payments for same machine
-    const { data: pendingPayments } = await supabase
-      .from('transactions')
-      .select('id, external_id, status')
-      .eq('user_id', userId)
-      .eq('status', 'pending')
-      .ilike('external_id', `MACHINE_${machineId}_${userId}_%`)
-      .gte('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString()) // Last 10 minutes
-
-    if (pendingPayments && pendingPayments.length > 0) {
-      console.log('⚠️ Duplicate payment attempt detected:', { userId, machineId })
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'You already have a pending payment for this machine. Please complete or wait for it to expire.'
-        },
-        { status: 409 }
-      )
-    }
-
-    // Prepare payload according to Fapshi official documentation
+    // Prepare Fapshi payload
     const fapshiPayload = {
-      amount: Math.round(finalPrice), // Use validated discounted price
-      phone: phone,
+      amount: correctPrice, // Use validated discounted price
+      phone: cleanPhone.slice(-9), // Always send last 9 digits
       medium: medium || "mobile money",
       name: userName || "Customer",
       email: userEmail || "customer@easydollars.com",
@@ -124,52 +115,54 @@ export async function POST(request: NextRequest) {
       message: `Purchase ${machineName} - EasyDollars`
     }
 
-    console.log('📤 Calling Fapshi /direct-pay endpoint with secure credentials')
+    console.log('📤 Calling Fapshi API...')
 
-    // Make secure server-to-server API call
+    // Call Fapshi API
     const response = await fetch('https://live.fapshi.com/direct-pay', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apiuser': process.env.FAPSHI_API_USER!, // From server environment
-        'apikey': process.env.FAPSHI_API_KEY!     // From server environment
+        'apiuser': process.env.FAPSHI_API_USER!,
+        'apikey': process.env.FAPSHI_API_KEY!
       },
       body: JSON.stringify(fapshiPayload)
     })
 
     const responseData = await response.json()
-    console.log('📨 Fapshi response:', { 
-      status: response.status, 
-      data: responseData 
-    })
+    console.log('📨 Fapshi response:', responseData)
 
     if (!response.ok) {
-      // Handle Fapshi API errors - Check for insufficient balance specifically
-      const errorMessage = responseData.message || responseData.error || `Payment failed: ${response.status}`
+      // Handle specific Fapshi errors
+      const errorMessage = responseData.message || responseData.error || 'Payment failed'
       
-      // Check if this is an insufficient balance error
+      // Check for insufficient balance
       if (errorMessage.toLowerCase().includes('insufficient') || 
           errorMessage.toLowerCase().includes('balance') ||
-          errorMessage.toLowerCase().includes('fund') ||
-          response.status === 402) { // 402 is Payment Required
-        
-        console.log('💸 Insufficient balance detected from Fapshi')
+          response.status === 402) {
         return NextResponse.json({
           success: false,
-          error: 'Insufficient balance in your mobile money account. Please recharge your account and try again.'
+          error: 'Insufficient balance in your mobile money account'
         }, { status: 400 })
       }
       
-      // For other Fapshi errors, return the original message
+      // Check for invalid phone
+      if (errorMessage.toLowerCase().includes('invalid phone') ||
+          errorMessage.toLowerCase().includes('not registered')) {
+        return NextResponse.json({
+          success: false,
+          error: 'Phone number not registered with mobile money'
+        }, { status: 400 })
+      }
+
       throw new Error(errorMessage)
     }
 
-    // Save pending transaction to database
+    // Save transaction to database
     const { error: dbError } = await supabase.from('transactions').insert({
       user_id: userId,
       type: 'machine_purchase',
-      description: `Purchase ${machineName} - ${externalId}`,
-      amount: -finalPrice, // Store discounted amount
+      description: `Purchase ${machineName}`,
+      amount: -correctPrice,
       currency: 'XAF',
       status: 'pending',
       external_id: externalId,
@@ -178,50 +171,33 @@ export async function POST(request: NextRequest) {
         machine_id: machineId,
         machine_name: machineName,
         original_price: machine.price,
-        discounted_price: finalPrice,
-        discount_applied: finalPrice !== machine.price,
-        phone: `***${phone.slice(-3)}`,
-        medium: medium
+        discounted_price: correctPrice,
+        discount_applied: correctPrice !== machine.price
       }
     })
 
     if (dbError) {
       console.error('❌ Database error:', dbError)
-      // Don't fail the payment if database save fails
+      // Don't fail the payment if DB save fails
     }
 
-    // ✅ FIX: REMOVED referral bonus processing from here
-    // It will be processed in webhook after successful payment confirmation
-
-    // Return success response to client
     return NextResponse.json({
       success: true,
-      message: responseData.message || 'Payment request sent to your phone!',
+      message: 'Payment request sent to your phone!',
       transId: responseData.transId,
-      externalId: externalId,
-      dateInitiated: responseData.dateInitiated
+      externalId: externalId
     })
 
   } catch (error: any) {
-    console.error('❌ Secure payment error:', error)
+    console.error('❌ Payment error:', error)
     
-    // Check if it's an insufficient balance error from our custom handling
-    if (error.message && error.message.includes('Insufficient balance')) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 400 }
-      )
-    }
-    
-    // Return generic error message to client (don't expose internal details)
     return NextResponse.json(
-      { success: false, error: 'Payment service temporarily unavailable. Please try again.' },
+      { success: false, error: error.message || 'Payment failed' },
       { status: 500 }
     )
   }
 }
 
-// Add GET method for testing
 export async function GET() {
   return NextResponse.json({
     success: true,
