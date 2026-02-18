@@ -1,4 +1,3 @@
-// app/dashboard/page.tsx
 "use client"
 
 import { useAuth } from "@/hooks/use-auth"
@@ -14,8 +13,11 @@ import { Toaster, toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { NotificationBell } from '@/components/notification-bell'
+import PromoModal from "@/components/PromoModal"
+import WeeklyReferralModal from "@/components/WeeklyReferralModal"
+import LiveWithdrawals from "@/components/LiveWithdrawals"
 
-// Define types to fix TypeScript errors
+// Define types
 interface ReferredUser {
   username: string;
   email: string;
@@ -62,7 +64,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user) {
-      // Load data in parallel for faster loading
+      // Load data in parallel
       Promise.all([
         fetchReferrals(),
         calculateTodaysEarnings(),
@@ -71,7 +73,7 @@ export default function DashboardPage() {
     }
   }, [user])
 
-  // Fetch referrals with explicit foreign key relationships
+  // Fetch referrals
   const fetchReferrals = async () => {
     if (!user) return
 
@@ -95,7 +97,7 @@ export default function DashboardPage() {
     }
   }
 
-  // Calculate today's earnings directly from database (no API needed)
+  // Calculate today's earnings
   const calculateTodaysEarnings = async () => {
     if (!user) return
 
@@ -119,7 +121,6 @@ export default function DashboardPage() {
       const machineEstimates: MachineEstimate[] = []
 
       userMachines?.forEach((um: any) => {
-        // Handle machine_types array properly
         const machineData = Array.isArray(um.machine_types) ? um.machine_types[0] : um.machine_types
         const dailyEarning = machineData?.daily_earnings || 0
         totalEstimated += dailyEarning
@@ -174,7 +175,6 @@ export default function DashboardPage() {
       let totalEarnings = 0
       const earningsDetails = []
 
-      // Calculate earnings for each machine
       for (const userMachine of userMachines) {
         const machineData = Array.isArray((userMachine as any).machine_types) 
           ? (userMachine as any).machine_types[0] 
@@ -189,7 +189,6 @@ export default function DashboardPage() {
           earnings: dailyEarning
         })
 
-        // Record individual earning in earnings table
         await supabase
           .from('earnings')
           .insert({
@@ -201,7 +200,6 @@ export default function DashboardPage() {
           })
       }
 
-      // Get current user balance first
       const { data: userData, error: fetchError } = await supabase
         .from('users')
         .select('ed_balance, total_earned')
@@ -213,7 +211,6 @@ export default function DashboardPage() {
       const currentEdBalance = userData?.ed_balance || 0
       const currentTotalEarned = userData?.total_earned || 0
 
-      // Update user's ED balance and total earned
       const { error: updateError } = await supabase
         .from('users')
         .update({ 
@@ -229,19 +226,16 @@ export default function DashboardPage() {
 
     } catch (error: any) {
       console.error('Manual earnings error:', error)
-      const errorMessage = error.message || 'Unknown error occurred'
-      toast.error('Failed to calculate earnings: ' + errorMessage)
+      toast.error('Failed to calculate earnings: ' + (error.message || 'Unknown error'))
     } finally {
       setCalculatingEarnings(false)
     }
   }
 
-  // Disable earnings history for now to avoid JSON errors
   const fetchEarningsHistory = async () => {
     setEarningsHistory([])
   }
 
-  // Show loading while checking social gate
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -259,13 +253,46 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-950 relative overflow-hidden">
       <FloatingParticles />
       <NotificationBell />
+      
+      {/* 🔥 Weekly Referral Modal - Shows first */}
+      <WeeklyReferralModal />
+      
+      {/* 🔥 ANNOUNCEMENT POPUP */}
+      <PromoModal
+        title="📢 Withdrawals Now Fully Available!"
+        message="Good news! The withdrawal system is now completely fixed. All users can now withdraw their earnings instantly without any restrictions."
+        showButton={true}
+        buttonText="Go to Wallet"
+        type="announcement"
+      />
+      
+      {/* 🔥 DISCOUNT POPUP */}
+      <PromoModal
+        title="🔥 5% Discount Available!"
+        message="50K, 100K and 150K machines are now discounted. Limited time offer."
+        type="discount"
+      />
+      
+      {/* 🔥 WITHDRAWAL POPUP */}
+      <PromoModal
+        title="💸 Withdrawals Now Enabled"
+        message="All users can now withdraw their earnings without restriction."
+        showButton={true}
+        buttonText="Withdraw Now"
+        type="withdrawal"
+      />
+
+      {/* 🔥 Live activity ticker */}
+      <LiveWithdrawals />
 
       <div className="relative z-10">
         <DashboardHeader />
 
         <main className="container mx-auto px-4 py-6 lg:py-8 space-y-6 lg:space-y-8">
-          {/* ✅ ONLY WalletOverview - This shows ALL earnings/balances */}
-          <WalletOverview />
+          {/* Wallet Section with ID for scrolling */}
+          <div id="wallet-section">
+            <WalletOverview />
+          </div>
 
           {/* Manual Earnings Calculation Button */}
           <div className="flex justify-center">
@@ -279,14 +306,12 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-6 lg:space-y-8">
-            {/* Machine Marketplace - Shows individual machine earnings (correct) */}
             <MachineMarketplace onPurchaseSuccess={refreshDashboard} />
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
               <div className="xl:col-span-2 space-y-6">
                 <EarningsChart />
                 
-                {/* Recent Earnings History */}
                 <div className="bg-slate-800/30 rounded-xl p-6">
                   <h3 className="font-bold text-cyan-400 text-lg mb-4">Recent Earnings</h3>
                   {earningsHistory.length === 0 ? (
@@ -296,12 +321,8 @@ export default function DashboardPage() {
                       {earningsHistory.map((earning) => (
                         <div key={earning.id} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
                           <div>
-                            <p className="text-white font-medium">
-                              {earning.machine?.name || 'Machine'}
-                            </p>
-                            <p className="text-slate-400 text-sm">
-                              {new Date(earning.earned_at).toLocaleDateString()}
-                            </p>
+                            <p className="text-white font-medium">{earning.machine?.name || 'Machine'}</p>
+                            <p className="text-slate-400 text-sm">{new Date(earning.earned_at).toLocaleDateString()}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-green-400 font-bold">+{earning.amount} XAF</p>
@@ -315,10 +336,8 @@ export default function DashboardPage() {
               </div>
               
               <div className="space-y-6">
-                {/* My Machines - Shows owned machines (correct) */}
                 <MyMachines onRefresh={refreshDashboard} />
                 
-                {/* Machine Earnings Breakdown - Shows per-machine earnings (correct) */}
                 {todaysEarnings?.machineEstimates && todaysEarnings.machineEstimates.length > 0 && (
                   <div className="bg-slate-800/30 rounded-xl p-6">
                     <h3 className="font-bold text-cyan-400 text-lg mb-4">Today's Machine Earnings</h3>

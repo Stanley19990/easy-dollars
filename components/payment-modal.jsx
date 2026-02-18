@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CreditCard, Loader2, Phone, CheckCircle, Smartphone } from "lucide-react"
+import { CreditCard, Loader2, Phone, Smartphone } from "lucide-react"
 import { toast } from "sonner"
 
 export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSuccess }) {
@@ -13,39 +13,51 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
   const [phone, setPhone] = useState("")
   const [selectedMethod, setSelectedMethod] = useState("mobile_money")
 
+  // Helper function to get discounted price
+  const getDiscountedPrice = (price) => {
+    const discountMachines = [50000, 100000, 150000]
+    if (discountMachines.includes(price)) {
+      return Math.round(price * 0.95) // 5% discount
+    }
+    return price
+  }
+
+  // Helper function to check if machine is discounted
+  const isDiscounted = (price) => {
+    return [50000, 100000, 150000].includes(price)
+  }
+
+  const finalPrice = getDiscountedPrice(machine.price)
+  const hasDiscount = isDiscounted(machine.price)
+  const discountAmount = machine.price - finalPrice
+
   const handlePayment = async () => {
     if (!phone.trim()) {
       toast.error("Please enter your phone number")
       return
     }
 
-    // Remove all non-digits
     const phoneWithoutSpaces = phone.replace(/\D/g, '')
     
-    // Validate phone format
     if (phoneWithoutSpaces.length !== 9 || !phoneWithoutSpaces.startsWith('6')) {
       toast.error("Please enter exactly 9 digits starting with 6 (like 677123456)")
       return
     }
 
-    // ✅ FIX: Prevent double submission
     if (processing) {
       return
     }
 
-    console.log('🚀 Initiating secure payment...')
-
     setProcessing(true)
 
     try {
-      // Call our secure server-side API route
       const response = await fetch('/api/payments/direct-pay', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: machine.price,
+          amount: finalPrice,
           machineId: machine.id,
           userId: user.id,
           machineName: machine.name,
@@ -57,37 +69,30 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
       })
 
       const data = await response.json()
-      console.log('📨 Secure API response:', data)
 
       if (!response.ok) {
         throw new Error(data.error || 'Payment creation failed')
       }
 
-      // ✅ FIX: Pass transId and externalId to parent for polling
       if (onPaymentSuccess) {
         onPaymentSuccess(data.transId, data.externalId)
       }
 
-      // Success - payment request sent to Fapshi
       toast.success("✅ " + (data.message || 'Payment request sent to your phone!'))
       toast.info("📱 Check your phone to complete the payment")
       
-      // Close modal
       onOpenChange(false)
 
     } catch (error) {
       console.error('❌ Payment error:', error)
-      toast.error("❌ " + error.message)
+      toast.error("❌ " + (error.message || 'Payment failed'))
     } finally {
       setProcessing(false)
     }
   }
 
-  const handlePhoneChange = (value) => {
-    // Remove all non-digits
-    const cleanValue = value.replace(/\D/g, '')
-    
-    // Allow only 9 digits
+  const handlePhoneChange = (e) => {
+    const cleanValue = e.target.value.replace(/\D/g, '')
     if (cleanValue.length <= 9) {
       setPhone(cleanValue)
     }
@@ -98,12 +103,20 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
       <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl text-white text-center">
-            Purchase {machine.name}
+            Purchase {machine?.name || 'Machine'}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* USSD Codes Info */}
+          {hasDiscount && (
+            <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-3 animate-pulse">
+              <div className="flex items-center justify-between">
+                <span className="text-green-400 font-bold">🔥 5% DISCOUNT!</span>
+                <span className="text-white font-bold">Save {discountAmount?.toLocaleString() || 0} XAF</span>
+              </div>
+            </div>
+          )}
+
           <div className="bg-blue-500/10 border border-blue-500/20 rounded p-3">
             <div className="flex items-start text-blue-300 text-sm">
               <Smartphone className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
@@ -118,7 +131,6 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
             </div>
           </div>
 
-          {/* Phone Input */}
           <div className="space-y-3">
             <div className="space-y-2">
               <Label htmlFor="phone" className="text-slate-300">Phone Number</Label>
@@ -127,7 +139,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
                 <Input
                   id="phone"
                   value={phone}
-                  onChange={(e) => handlePhoneChange(e.target.value)}
+                  onChange={handlePhoneChange}
                   className="pl-10 bg-slate-800 border-slate-700 text-white"
                   placeholder="677123456"
                   maxLength={9}
@@ -140,7 +152,6 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
               </p>
             </div>
 
-            {/* Payment Method */}
             <div className="space-y-2">
               <Label className="text-slate-300">Payment Method</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -166,24 +177,44 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
             </div>
           </div>
 
-          {/* Machine Info */}
           <div className="bg-slate-800/50 rounded-lg p-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-slate-400">Amount:</span>
-              <span className="text-2xl font-bold text-green-400">
-                {machine.price.toLocaleString()} XAF
-              </span>
-            </div>
-            <div className="text-sm text-slate-400">
-              {machine.description}
-            </div>
+            {hasDiscount ? (
+              <>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-slate-400">Original Price:</span>
+                  <span className="text-sm text-red-400 line-through">
+                    {machine?.price?.toLocaleString() || 0} XAF
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-slate-400">Discounted Price:</span>
+                  <span className="text-2xl font-bold text-green-400">
+                    {finalPrice?.toLocaleString() || 0} XAF
+                  </span>
+                </div>
+                <div className="text-xs text-amber-400 font-bold text-center mt-1">
+                  🔥 You save {discountAmount?.toLocaleString() || 0} XAF (5% OFF)
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-slate-400">Amount:</span>
+                <span className="text-2xl font-bold text-green-400">
+                  {machine?.price?.toLocaleString() || 0} XAF
+                </span>
+              </div>
+            )}
+            {machine?.description && (
+              <div className="text-sm text-slate-400 mt-2">
+                {machine.description}
+              </div>
+            )}
           </div>
 
-          {/* Payment Button */}
           <Button
             onClick={handlePayment}
             disabled={processing || phone.length !== 9}
-            className="w-full font-semibold py-3 bg-green-500 hover:bg-green-600 disabled:bg-slate-600 disabled:cursor-not-allowed"
+            className="w-full font-semibold py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:bg-slate-600 disabled:cursor-not-allowed"
           >
             {processing ? (
               <>
@@ -193,7 +224,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
             ) : (
               <>
                 <CreditCard className="h-4 w-4 mr-2" />
-                Send Payment Request
+                Pay {finalPrice?.toLocaleString() || 0} XAF
               </>
             )}
           </Button>

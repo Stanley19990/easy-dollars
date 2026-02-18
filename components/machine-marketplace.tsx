@@ -284,6 +284,18 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   }
 
   if (!user) return null
+// ✅ 5% DISCOUNT LOGIC
+const getDiscountedPrice = (price: number) => {
+  const discountMachines = [50000, 100000, 150000]
+  if (discountMachines.includes(price)) {
+    return Math.round(price * 0.95)
+  }
+  return price
+}
+
+const isDiscounted = (price: number) => {
+  return [50000, 100000, 150000].includes(price)
+}
 
   return (
     <>
@@ -449,7 +461,23 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
                     <div className="space-y-3">
                       {/* Price Display */}
                       <div className="text-center bg-slate-800/50 rounded-lg p-4">
-                        <div className="text-3xl font-bold text-white mb-1">{machine.price.toLocaleString()} XAF</div>
+{isDiscounted(machine.price) ? (
+  <>
+    <div className="text-lg text-red-400 line-through">
+      {machine.price.toLocaleString()} XAF
+    </div>
+    <div className="text-3xl font-bold text-green-400 mb-1">
+      {getDiscountedPrice(machine.price).toLocaleString()} XAF
+    </div>
+    <div className="text-xs text-amber-400 font-bold animate-pulse">
+      🔥 5% NEW YEAR DISCOUNT
+    </div>
+  </>
+) : (
+  <div className="text-3xl font-bold text-white mb-1">
+    {machine.price.toLocaleString()} XAF
+  </div>
+)}
                         <div className="text-sm text-slate-400">One-time payment</div>
                       </div>
 

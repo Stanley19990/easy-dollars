@@ -34,18 +34,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate amount (minimum 100 XAF as per Fapshi docs)
-    if (amount < 100) {
-      return NextResponse.json(
-        { success: false, error: 'Amount must be at least 100 XAF' },
-        { status: 400 }
-      )
-    }
-
     // Validate phone format
     if (phone.length !== 9 || !phone.startsWith('6')) {
       return NextResponse.json(
         { success: false, error: 'Phone must be 9 digits starting with 6' },
+        { status: 400 }
+      )
+    }
+
+    // ✅ FIX: Fetch machine with discount from database to validate price
+    const { data: machine, error: machineError } = await supabase
+      .from('machine_types')
+      .select('*')
+      .eq('id', parseInt(machineId))
+      .single()
+
+    if (machineError || !machine) {
+      return NextResponse.json(
+        { success: false, error: 'Machine not found' },
+        { status: 404 }
+      )
+    }
+
+    // ✅ FIX: Calculate discounted price securely on backend
+    let finalPrice = machine.price
+    const discountMachines = [50000, 100000, 150000]
+    
+    if (discountMachines.includes(machine.price)) {
+      finalPrice = Math.round(machine.price * 0.95) // 5% discount
+    }
+
+    // ✅ FIX: Verify the amount matches the discounted price
+    if (Math.abs(amount - finalPrice) > 1) { // Allow 1 XAF rounding difference
+      console.error('❌ Price mismatch:', { sentAmount: amount, expectedPrice: finalPrice })
+      return NextResponse.json(
+        { success: false, error: 'Invalid price - please refresh the page' },
         { status: 400 }
       )
     }
@@ -91,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     // Prepare payload according to Fapshi official documentation
     const fapshiPayload = {
-      amount: Math.round(amount),
+      amount: Math.round(finalPrice), // Use validated discounted price
       phone: phone,
       medium: medium || "mobile money",
       name: userName || "Customer",
@@ -146,7 +169,7 @@ export async function POST(request: NextRequest) {
       user_id: userId,
       type: 'machine_purchase',
       description: `Purchase ${machineName} - ${externalId}`,
-      amount: -amount,
+      amount: -finalPrice, // Store discounted amount
       currency: 'XAF',
       status: 'pending',
       external_id: externalId,
@@ -154,6 +177,9 @@ export async function POST(request: NextRequest) {
       metadata: {
         machine_id: machineId,
         machine_name: machineName,
+        original_price: machine.price,
+        discounted_price: finalPrice,
+        discount_applied: finalPrice !== machine.price,
         phone: `***${phone.slice(-3)}`,
         medium: medium
       }
