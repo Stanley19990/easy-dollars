@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Lock, CheckCircle, AlertCircle, Loader2, Home, LogIn } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
+import { LanguageSwitcher } from "@/components/language-switcher"
 
 export default function UpdatePasswordPage() {
   const router = useRouter()
@@ -109,11 +110,15 @@ export default function UpdatePasswordPage() {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md border-slate-700 bg-slate-800/50 backdrop-blur-sm">
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 sm:p-6">
+        <div className="cr-backdrop cr-grid"></div>
+        <div className="absolute top-4 right-4 z-20">
+          <LanguageSwitcher compact />
+        </div>
+        <Card className="w-full max-w-md cr-glass relative z-10 mx-auto">
           <CardContent className="p-8">
             <div className="text-center">
-              <Loader2 className="h-8 w-8 text-cyan-400 animate-spin mx-auto mb-4" />
+              <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mx-auto mb-4" />
               <p className="text-slate-400">Verifying reset link...</p>
             </div>
           </CardContent>
@@ -124,12 +129,16 @@ export default function UpdatePasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md border-green-500/20 bg-slate-800/50 backdrop-blur-sm">
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 sm:p-6">
+        <div className="cr-backdrop cr-grid"></div>
+        <div className="absolute top-4 right-4 z-20">
+          <LanguageSwitcher compact />
+        </div>
+        <Card className="w-full max-w-md cr-glass relative z-10 mx-auto">
           <CardContent className="p-8">
             <div className="text-center space-y-6">
-              <div className="bg-green-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="h-8 w-8 text-green-400" />
+              <div className="bg-emerald-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-emerald-300" />
               </div>
               <h3 className="text-xl font-bold text-white">Password Updated!</h3>
               <p className="text-slate-400">
@@ -157,9 +166,9 @@ export default function UpdatePasswordPage() {
                     }
                     
                     // If auto-login fails, go to homepage
-                    router.push("/")
+                    router.push("/?login=true")
                   }}
-                  className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                  className="w-full cr-button text-slate-950"
                 >
                   <LogIn className="h-4 w-4 mr-2" />
                   Login & Go to Dashboard
@@ -167,10 +176,10 @@ export default function UpdatePasswordPage() {
                 
                 <Button
                   onClick={() => {
-                    router.push("/")
+                    router.push("/?login=true")
                   }}
                   variant="outline"
-                  className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
+                  className="w-full cr-outline-button hover:text-cyan-100"
                 >
                   <Home className="h-4 w-4 mr-2" />
                   Go to Homepage
@@ -184,11 +193,15 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border-slate-700 bg-slate-800/50 backdrop-blur-sm">
+    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 sm:p-6">
+      <div className="cr-backdrop cr-grid"></div>
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher compact />
+      </div>
+      <Card className="w-full max-w-md cr-glass relative z-10 mx-auto">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2 text-white">
-            <Lock className="h-5 w-5 text-cyan-400" />
+            <Lock className="h-5 w-5 text-cyan-200" />
             <span>Set New Password</span>
           </CardTitle>
           <CardDescription className="text-slate-400">
@@ -197,9 +210,9 @@ export default function UpdatePasswordPage() {
         </CardHeader>
         
         <CardContent>
-          <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3 mb-4">
+          <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-3 mb-4">
             <div className="flex items-start space-x-2">
-              <AlertCircle className="h-4 w-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="h-4 w-4 text-cyan-200 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-cyan-200/80">
                 We'll try to automatically log you in with the new password. If that fails, you'll be redirected to the homepage to login manually.
               </p>
@@ -217,7 +230,7 @@ export default function UpdatePasswordPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter new password"
-                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                className="bg-slate-900/70 border-slate-700 text-white placeholder:text-slate-500"
                 required
                 minLength={6}
               />
@@ -233,14 +246,14 @@ export default function UpdatePasswordPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm new password"
-                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                className="bg-slate-900/70 border-slate-700 text-white placeholder:text-slate-500"
                 required
                 minLength={6}
               />
             </div>
 
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-              <p className="text-xs text-yellow-200/80">
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3">
+              <p className="text-xs text-amber-200/80">
                 Password must be at least 6 characters long. You can only use this reset link once.
               </p>
             </div>
@@ -248,7 +261,7 @@ export default function UpdatePasswordPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+              className="w-full cr-button text-slate-950"
             >
               {loading ? (
                 <>

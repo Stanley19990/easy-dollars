@@ -161,45 +161,45 @@ export function WalletOverview() {
   return (
     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
       {/* Available Balance - FIXED: Use state value */}
-      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+      <Card className="cr-glass cr-card-3d">
         <CardHeader className="flex items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-slate-400">Available Balance</CardTitle>
           <div className="flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-green-400" />
+            <Wallet className="h-4 w-4 text-emerald-300" />
             <RefreshCw 
-              className={`h-4 w-4 text-slate-400 cursor-pointer hover:text-green-400 transition-colors ${loading ? 'animate-spin' : ''}`} 
+              className={`h-4 w-4 text-slate-400 cursor-pointer hover:text-emerald-300 transition-colors ${loading ? 'animate-spin' : ''}`} 
               onClick={handleRefresh} 
             />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-green-400">
+          <div className="text-2xl font-bold text-emerald-300">
             {walletBalance.toLocaleString()} XAF
           </div>
           <p className="text-xs text-slate-500 mt-1">Available for withdrawal</p>
         </CardContent>
       </Card>
 
-      {/* ED Balance */}
-      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+      {/* CR Balance */}
+      <Card className="cr-glass cr-card-3d">
         <CardHeader className="flex items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-slate-400">ED Balance</CardTitle>
-          <Coins className="h-4 w-4 text-cyan-400" />
+          <CardTitle className="text-sm font-medium text-slate-400">CR Balance</CardTitle>
+          <Coins className="h-4 w-4 text-cyan-300" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-cyan-400">{(user.ed_balance || 0).toFixed(2)} ED</div>
-          <p className="text-xs text-slate-500 mt-1">Easy Dollars tokens</p>
+          <div className="text-2xl font-bold text-cyan-300">{(user.ed_balance || 0).toFixed(2)} CR</div>
+          <p className="text-xs text-slate-500 mt-1">CashRise (CR) tokens</p>
         </CardContent>
       </Card>
 
       {/* Daily Earnings Potential */}
-      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+      <Card className="cr-glass cr-card-3d">
         <CardHeader className="flex items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-slate-400">Daily Potential</CardTitle>
-          <DollarSign className="h-4 w-4 text-purple-400" />
+          <DollarSign className="h-4 w-4 text-amber-300" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-purple-400">
+          <div className="text-2xl font-bold text-amber-300">
             {stats.totalDailyEarnings.toLocaleString()} XAF
           </div>
           <p className="text-xs text-slate-500 mt-1">From {stats.ownedMachines} machines</p>
@@ -207,13 +207,13 @@ export function WalletOverview() {
       </Card>
 
       {/* Total Earned - FIXED: Use state value */}
-      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+      <Card className="cr-glass cr-card-3d">
         <CardHeader className="flex items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-slate-400">Total Earned</CardTitle>
-          <TrendingUp className="h-4 w-4 text-amber-400" />
+          <TrendingUp className="h-4 w-4 text-emerald-300" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-amber-400">
+          <div className="text-2xl font-bold text-emerald-300">
             {totalEarned.toLocaleString()} XAF
           </div>
           <p className="text-xs text-slate-500 mt-1">Lifetime earnings</p>

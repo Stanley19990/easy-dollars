@@ -205,24 +205,24 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   const getGradientClasses = (gradientType: string) => {
     const gradients: Record<string, { bg: string; border: string; button: string }> = {
       "blue-cyan": {
-        bg: "from-blue-500 to-cyan-500",
-        border: "border-blue-500/20",
-        button: "from-blue-500 to-cyan-500"
+        bg: "from-cyan-500 to-emerald-500",
+        border: "border-cyan-400/30",
+        button: "from-cyan-400 to-emerald-400"
       },
       "purple-pink": {
-        bg: "from-purple-500 to-pink-500",
-        border: "border-purple-500/20",
-        button: "from-purple-500 to-pink-500"
+        bg: "from-indigo-500 to-fuchsia-500",
+        border: "border-fuchsia-400/30",
+        button: "from-indigo-400 to-fuchsia-400"
       },
       "green-emerald": {
-        bg: "from-green-500 to-emerald-500",
-        border: "border-green-500/20",
-        button: "from-green-500 to-emerald-500"
+        bg: "from-emerald-500 to-teal-500",
+        border: "border-emerald-400/30",
+        button: "from-emerald-400 to-teal-400"
       },
       "orange-red": {
-        bg: "from-orange-500 to-red-500",
-        border: "border-orange-500/20",
-        button: "from-orange-500 to-red-500"
+        bg: "from-amber-500 to-orange-500",
+        border: "border-amber-400/30",
+        button: "from-amber-400 to-orange-400"
       }
     }
     return gradients[gradientType] || gradients["blue-cyan"]
@@ -299,20 +299,20 @@ const isDiscounted = (price: number) => {
 
   return (
     <>
-      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+      <Card className="cr-glass border border-cyan-400/20">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <ShoppingCart className="h-6 w-6 text-cyan-400" />
-            <span className="text-2xl text-white">AI Gaming Machine Marketplace</span>
+            <ShoppingCart className="h-6 w-6 text-emerald-300" />
+            <span className="text-2xl text-white">CashRise Machine Marketplace</span>
           </CardTitle>
           <p className="text-slate-400 text-base mt-2">
-            Purchase AI-powered gaming machines with ultra-realistic 4K animations that automatically watch ads and earn you money 24/7.
+            Purchase AI-powered gaming machines with ultra-realistic 4K animations that automatically watch ads and grow your earnings 24/7.
           </p>
           
           {/* ✅ FIX: Show polling indicator */}
           {activePaymentTransId && (
-            <div className="mt-2 flex items-center space-x-2 text-sm text-cyan-400">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
+            <div className="mt-2 flex items-center space-x-2 text-sm text-cyan-200">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-400"></div>
               <span>Waiting for payment confirmation...</span>
             </div>
           )}
@@ -330,9 +330,9 @@ const isDiscounted = (price: number) => {
               return (
                 <Card
                   key={machine.id}
-                  className={`bg-slate-800/50 border-slate-700 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/20 ${
+                  className={`cr-glass cr-card-3d transition-all duration-300 ${
                     !machine.is_available ? "opacity-90" : ""
-                  } ${isProcessing ? "border-cyan-500 shadow-lg shadow-cyan-500/30" : ""}`}
+                  } ${isProcessing ? "border-cyan-400/60 shadow-[0_0_30px_rgba(55,199,255,0.35)]" : ""}`}
                 >
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between mb-3">
@@ -340,21 +340,21 @@ const isDiscounted = (price: number) => {
                       {!machine.is_available ? (
                         <Badge
                           variant="secondary"
-                          className="bg-amber-500/20 text-amber-400 border-0 font-bold text-sm px-3 py-1"
+                          className="bg-amber-500/20 text-amber-300 border-0 font-bold text-sm px-3 py-1"
                         >
                           Coming Soon
                         </Badge>
                       ) : owned ? (
                         <Badge
                           variant="secondary"
-                          className="bg-green-500/20 text-green-400 border-0 font-bold text-sm px-3 py-1"
+                          className="bg-emerald-500/20 text-emerald-300 border-0 font-bold text-sm px-3 py-1"
                         >
                           Owned
                         </Badge>
                       ) : isProcessing ? (
                         <Badge
                           variant="secondary"
-                          className="bg-cyan-500/20 text-cyan-400 border-0 font-bold text-sm px-3 py-1 animate-pulse"
+                          className="bg-cyan-500/20 text-cyan-200 border-0 font-bold text-sm px-3 py-1 animate-pulse"
                         >
                           Processing...
                         </Badge>
@@ -371,14 +371,14 @@ const isDiscounted = (price: number) => {
                   <CardContent className="space-y-5">
                     {/* Machine Image */}
                     <div
-                      className={`aspect-square bg-gradient-to-br ${gradient.bg} rounded-xl flex items-center justify-center relative overflow-hidden shadow-lg transform transition-transform duration-500 hover:scale-105 hover:rotate-1`}
+                      className={`aspect-square bg-gradient-to-br ${gradient.bg} rounded-2xl flex items-center justify-center relative overflow-hidden shadow-[0_18px_40px_rgba(0,0,0,0.4)] transform transition-transform duration-500 hover:scale-105 hover:rotate-1`}
                     >
                       <div className="absolute inset-0 bg-black/10"></div>
                       {hasDatabaseImage ? (
                         <>
                           {!isImageLoaded && (
-                            <div className="absolute inset-0 bg-slate-700 animate-pulse flex items-center justify-center">
-                              <ImageIcon className="h-12 w-12 text-slate-500" />
+                            <div className="absolute inset-0 bg-slate-800 animate-pulse flex items-center justify-center">
+                              <ImageIcon className="h-12 w-12 text-slate-600" />
                             </div>
                           )}
                           <img
@@ -391,8 +391,8 @@ const isDiscounted = (price: number) => {
                           />
                         </>
                       ) : (
-                        <div className="w-full h-full bg-slate-700 flex items-center justify-center">
-                          <ImageIcon className="h-12 w-12 text-slate-500" />
+                        <div className="w-full h-full bg-slate-800 flex items-center justify-center">
+                          <ImageIcon className="h-12 w-12 text-slate-600" />
                         </div>
                       )}
                       <div className="absolute top-3 right-3">
@@ -401,10 +401,10 @@ const isDiscounted = (price: number) => {
                             !machine.is_available
                               ? "bg-amber-400"
                               : owned
-                              ? "bg-green-400"
+                              ? "bg-emerald-400"
                               : isProcessing
                               ? "bg-cyan-400"
-                              : "bg-blue-400"
+                              : "bg-emerald-300"
                           } rounded-full animate-pulse shadow-lg`}
                         ></div>
                       </div>
@@ -429,47 +429,47 @@ const isDiscounted = (price: number) => {
                     </div>
 
                     {/* Earnings Information */}
-                    <div className="bg-slate-800/70 rounded-lg p-4 space-y-3">
+                    <div className="bg-slate-900/60 rounded-2xl p-4 space-y-3 border border-cyan-400/10">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <DollarSign className="h-4 w-4 text-green-400" />
+                          <DollarSign className="h-4 w-4 text-emerald-300" />
                           <span className="text-sm text-slate-300">Daily Earnings</span>
                         </div>
-                        <span className="text-lg font-bold text-green-400">
+                        <span className="text-lg font-bold text-emerald-300">
                           {machine.daily_earnings.toLocaleString()} XAF
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4 text-blue-400" />
+                          <Calendar className="h-4 w-4 text-cyan-300" />
                           <span className="text-sm text-slate-300">Monthly Earnings</span>
                         </div>
-                        <span className="text-lg font-bold text-blue-400">
+                        <span className="text-lg font-bold text-cyan-300">
                           {machine.monthly_earnings.toLocaleString()} XAF
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <TrendingUp className="h-4 w-4 text-amber-400" />
+                          <TrendingUp className="h-4 w-4 text-amber-300" />
                           <span className="text-sm text-slate-300">ROI Period</span>
                         </div>
-                        <span className="text-sm font-bold text-amber-400">{roiDays} Days</span>
+                        <span className="text-sm font-bold text-amber-300">{roiDays} Days</span>
                       </div>
                     </div>
 
                     {/* Action Buttons */}
                     <div className="space-y-3">
                       {/* Price Display */}
-                      <div className="text-center bg-slate-800/50 rounded-lg p-4">
+                      <div className="text-center bg-slate-900/60 rounded-2xl p-4 border border-cyan-400/10">
 {isDiscounted(machine.price) ? (
   <>
-    <div className="text-lg text-red-400 line-through">
+    <div className="text-lg text-rose-300 line-through">
       {machine.price.toLocaleString()} XAF
     </div>
-    <div className="text-3xl font-bold text-green-400 mb-1">
+    <div className="text-3xl font-bold text-emerald-300 mb-1">
       {getDiscountedPrice(machine.price).toLocaleString()} XAF
     </div>
-    <div className="text-xs text-amber-400 font-bold animate-pulse">
+    <div className="text-xs text-amber-300 font-bold animate-pulse">
       🔥 5% NEW YEAR DISCOUNT
     </div>
   </>
@@ -493,7 +493,7 @@ const isDiscounted = (price: number) => {
                         <Button
                           onClick={() => handlePurchaseClick(machine.id)}
                           disabled={!machine.is_available || isProcessing || !!purchasing}
-                          className={`w-full bg-gradient-to-r ${gradient.button} hover:opacity-90 disabled:opacity-50 font-bold text-lg py-6 shadow-lg transition-all duration-200 hover:scale-105`}
+                          className={`w-full bg-gradient-to-r ${gradient.button} hover:opacity-90 disabled:opacity-50 font-bold text-lg py-6 shadow-lg transition-all duration-200 hover:scale-105 text-slate-950`}
                         >
                           {!machine.is_available ? (
                             "Coming Soon"

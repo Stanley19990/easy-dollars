@@ -97,9 +97,9 @@ export default function TransactionsPage() {
   // Show loading while checking auth
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-16 w-16 text-cyan-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="h-16 w-16 text-emerald-400 animate-spin mx-auto mb-4" />
           <p className="text-slate-400">Loading...</p>
         </div>
       </div>
@@ -108,9 +108,9 @@ export default function TransactionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-16 w-16 text-cyan-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="h-16 w-16 text-emerald-400 animate-spin mx-auto mb-4" />
           <p className="text-slate-400">Loading transactions...</p>
         </div>
       </div>
@@ -118,7 +118,8 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="cr-backdrop cr-grid"></div>
       <FloatingParticles />
       
       <div className="relative z-10">
@@ -128,7 +129,7 @@ export default function TransactionsPage() {
           <div className="max-w-6xl mx-auto space-y-8">
             {/* Page Header */}
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-2">
+              <h1 className="text-3xl font-bold cr-title cr-hero-text mb-2">
                 Transaction History
               </h1>
               <p className="text-slate-400">
@@ -138,11 +139,11 @@ export default function TransactionsPage() {
 
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="bg-slate-800/50 border-slate-700">
+              <Card className="cr-glass">
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-3">
-                    <div className="p-3 bg-green-500/10 rounded-lg">
-                      <Coins className="h-6 w-6 text-green-400" />
+                    <div className="p-3 bg-emerald-500/10 rounded-2xl">
+                      <Coins className="h-6 w-6 text-emerald-300" />
                     </div>
                     <div>
                       <p className="text-slate-400 text-sm">Total Earned</p>
@@ -154,10 +155,10 @@ export default function TransactionsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-slate-800/50 border-slate-700">
+              <Card className="cr-glass">
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-3">
-                    <div className="p-3 bg-red-500/10 rounded-lg">
+                    <div className="p-3 bg-red-500/10 rounded-2xl">
                       <ArrowUpRight className="h-6 w-6 text-red-400" />
                     </div>
                     <div>
@@ -170,10 +171,10 @@ export default function TransactionsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-slate-800/50 border-slate-700">
+              <Card className="cr-glass">
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-3">
-                    <div className="p-3 bg-pink-500/10 rounded-lg">
+                    <div className="p-3 bg-pink-500/10 rounded-2xl">
                       <Users className="h-6 w-6 text-pink-400" />
                     </div>
                     <div>
@@ -186,10 +187,10 @@ export default function TransactionsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-slate-800/50 border-slate-700">
+              <Card className="cr-glass">
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-3">
-                    <div className="p-3 bg-orange-500/10 rounded-lg">
+                    <div className="p-3 bg-orange-500/10 rounded-2xl">
                       <Share2 className="h-6 w-6 text-orange-400" />
                     </div>
                     <div>
@@ -208,7 +209,7 @@ export default function TransactionsPage() {
 
             {/* No Transactions Message */}
             {transactions.length === 0 && (
-              <Card className="bg-slate-800/50 border-slate-700">
+              <Card className="cr-glass">
                 <CardContent className="p-12 text-center">
                   <Coins className="h-16 w-16 text-slate-600 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-slate-300 mb-2">
@@ -233,7 +234,7 @@ export default function TransactionsPage() {
                   </div>
                   
                   {/* Debug Info - Remove in production */}
-                  <div className="mt-6 p-4 bg-slate-700/30 rounded-lg">
+                  <div className="mt-6 p-4 bg-slate-900/60 rounded-2xl border border-cyan-400/10">
                     <p className="text-sm text-slate-400 mb-2">Debug Info:</p>
                     <p className="text-xs text-slate-500">
                       User ID: {user?.id}<br />

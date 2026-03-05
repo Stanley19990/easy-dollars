@@ -22,6 +22,7 @@ function LandingPageContent() {
   useEffect(() => {
     // Check for password reset success parameter
     const resetSuccess = searchParams.get('resetSuccess')
+    const loginParam = searchParams.get('login')
     
     if (resetSuccess === 'true') {
       toast.success("Password reset successful! Please login with your new password.")
@@ -30,6 +31,13 @@ function LandingPageContent() {
       // Clean URL
       const url = new URL(window.location.href)
       url.searchParams.delete('resetSuccess')
+      window.history.replaceState({}, '', url.toString())
+    }
+
+    if (loginParam === 'true') {
+      setShowLoginModal(true)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('login')
       window.history.replaceState({}, '', url.toString())
     }
   }, [searchParams])
@@ -42,8 +50,8 @@ function LandingPageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-cyan-500"></div>
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-400"></div>
       </div>
     )
   }
@@ -53,7 +61,8 @@ function LandingPageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+    <main className="min-h-screen relative overflow-hidden">
+      <div className="cr-backdrop cr-grid"></div>
       <FloatingParticles />
       <HeroSection />
       <HowItWorksSection />
@@ -70,8 +79,8 @@ function LandingPageContent() {
 export default function LandingPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" />
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
       </div>
     }>
       <LandingPageContent />

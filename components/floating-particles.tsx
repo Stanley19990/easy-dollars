@@ -19,7 +19,7 @@ export function FloatingParticles() {
       {particles.map((particle) => (
         <div
           key={particle.id}
-          className="absolute w-1 h-1 bg-cyan-400 rounded-full floating-particle opacity-30"
+          className="absolute w-1.5 h-1.5 bg-emerald-300/60 rounded-full floating-particle blur-[0.2px]"
           style={{
             left: `${particle.left}%`,
             animationDelay: `${particle.delay}s`,

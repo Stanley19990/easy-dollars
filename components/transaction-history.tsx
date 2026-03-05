@@ -110,6 +110,11 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
     })
   }
 
+  const formatCurrency = (currency: string) => {
+    if (currency === "ED") return "CR"
+    return currency
+  }
+
   // Sort transactions by date (newest first)
   const sortedTransactions = [...transactions].sort((a, b) => 
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -132,10 +137,10 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
   }, {})
 
   return (
-    <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+    <Card className="cr-glass">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <History className="h-5 w-5 text-slate-300" />
+          <History className="h-5 w-5 text-cyan-200" />
           <span className="text-white">Transaction History</span>
         </CardTitle>
         <p className="text-slate-300 text-sm">
@@ -156,10 +161,10 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
                 {dayTransactions.map((transaction: any) => (
                   <div
                     key={transaction.id}
-                    className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors"
+                    className="flex items-center justify-between p-4 bg-slate-900/60 rounded-2xl border border-cyan-400/10 hover:border-cyan-400/30 transition-colors"
                   >
                     <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      <div className="p-2 bg-slate-700 rounded-lg flex-shrink-0">
+                      <div className="p-2 bg-slate-800 rounded-xl flex-shrink-0 border border-cyan-400/10">
                         {getTransactionIcon(transaction.type)}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -173,7 +178,7 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
                               <span className="text-slate-500">•</span>
                               <Badge 
                                 variant="secondary" 
-                                className="bg-slate-700/50 text-slate-300 border-slate-600 text-xs"
+                                className="bg-slate-800/60 text-slate-300 border-slate-700 text-xs"
                               >
                                 {transaction.type.replace('_', ' ')}
                               </Badge>
@@ -187,7 +192,7 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
                       <div className="flex items-center space-x-2 justify-end">
                         <span className={`font-semibold ${getAmountColor(transaction.type)}`}>
                           {getAmountPrefix(transaction.type)}
-                          {transaction.amount.toLocaleString()} {transaction.currency}
+                          {transaction.amount.toLocaleString()} {formatCurrency(transaction.currency)}
                         </span>
                       </div>
                       <Badge 
@@ -214,7 +219,7 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
 
         {/* Transaction Types Legend */}
         {sortedTransactions.length > 0 && (
-          <div className="mt-6 pt-4 border-t border-slate-700">
+          <div className="mt-6 pt-4 border-t border-slate-800/80">
             <div className="flex flex-wrap gap-3 justify-center">
               <div className="flex items-center space-x-1 text-xs text-slate-400">
                 <Coins className="h-3 w-3 text-green-400" />

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/hooks/use-auth"
 import { Loader2 } from "lucide-react"
+import { CashRiseLogo } from "@/components/cashrise-logo"
 
 interface AuthModalProps {
   isOpen: boolean
@@ -18,22 +19,7 @@ interface AuthModalProps {
   onModeChange: (mode: "signin" | "signup") => void
 }
 
-const africanCountries = [
-  "Nigeria",
-  "Kenya",
-  "South Africa",
-  "Ghana",
-  "Uganda",
-  "Tanzania",
-  "Ethiopia",
-  "Morocco",
-  "Algeria",
-  "Egypt",
-  "Cameroon",
-  "Ivory Coast",
-  "Madagascar",
-  "Burkina Faso",
-]
+const africanCountries = ["Cameroon"]
 
 export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProps) {
   const { signIn, signUp } = useAuth()
@@ -43,7 +29,7 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
     email: "",
     password: "",
     fullName: "",
-    country: "",
+    country: "Cameroon",
     phone: "",
     referralCode: "",
   })
@@ -114,14 +100,17 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-slate-900 border-cyan-500/20">
+      <DialogContent className="sm:max-w-md cr-glass border-cyan-500/30">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-            {mode === "signin" ? "Welcome Back" : "Join Easy Dollars"}
+          <div className="flex justify-center">
+            <CashRiseLogo size={38} />
+          </div>
+          <DialogTitle className="text-2xl font-bold text-center text-white">
+            {mode === "signin" ? "Welcome Back" : "Join CashRise"}
           </DialogTitle>
           <DialogDescription className="text-center text-slate-400">
             {mode === "signin"
-              ? "Sign in to your Easy Dollars account to start earning"
+              ? "Sign in to your CashRise account to start earning"
               : "Create your account and start earning money by watching ads"}
           </DialogDescription>
         </DialogHeader>
@@ -132,25 +121,25 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-slate-200">Email</Label>
             <Input
               id="email"
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="bg-slate-800 border-slate-700 focus:border-cyan-500"
+              className="bg-slate-900/70 border-slate-700/70 focus:border-cyan-500 text-slate-100"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-slate-200">Password</Label>
             <Input
               id="password"
               type="password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="bg-slate-800 border-slate-700 focus:border-cyan-500"
+              className="bg-slate-900/70 border-slate-700/70 focus:border-cyan-500 text-slate-100"
               required
             />
           </div>
@@ -158,26 +147,26 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
           {mode === "signup" && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
+                <Label htmlFor="fullName" className="text-slate-200">Full Name</Label>
                 <Input
                   id="fullName"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="bg-slate-800 border-slate-700 focus:border-cyan-500"
+                  className="bg-slate-900/70 border-slate-700/70 focus:border-cyan-500 text-slate-100"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="country">Country</Label>
+                <Label htmlFor="country" className="text-slate-200">Country</Label>
                 <Select
                   value={formData.country}
                   onValueChange={(value) => setFormData({ ...formData, country: value })}
                 >
-                  <SelectTrigger className="bg-slate-800 border-slate-700 focus:border-cyan-500">
+                  <SelectTrigger className="bg-slate-900/70 border-slate-700/70 focus:border-cyan-500">
                     <SelectValue placeholder="Select your country" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectContent className="bg-slate-900 border-slate-700">
                     {africanCountries.map((country) => (
                       <SelectItem key={country} value={country}>
                         {country}
@@ -188,22 +177,22 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone (Optional)</Label>
+                <Label htmlFor="phone" className="text-slate-200">Phone (Optional)</Label>
                 <Input
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="bg-slate-800 border-slate-700 focus:border-cyan-500"
+                  className="bg-slate-900/70 border-slate-700/70 focus:border-cyan-500 text-slate-100"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="referralCode">Referral Code (Optional)</Label>
+                <Label htmlFor="referralCode" className="text-slate-200">Referral Code (Optional)</Label>
                 <Input
                   id="referralCode"
                   value={formData.referralCode}
                   onChange={(e) => setFormData({ ...formData, referralCode: e.target.value })}
-                  className="bg-slate-800 border-slate-700 focus:border-cyan-500"
+                  className="bg-slate-900/70 border-slate-700/70 focus:border-cyan-500 text-slate-100"
                   placeholder="Enter referral code"
                 />
               </div>
@@ -213,7 +202,7 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
           <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+            className="w-full cr-button text-slate-950 font-bold"
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {mode === "signin" ? "Sign In" : "Create Account"}

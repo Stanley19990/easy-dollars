@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Shield, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { CashRiseLogo } from "@/components/cashrise-logo"
 
 export function AdminHeader() {
   const router = useRouter()
@@ -13,15 +14,19 @@ export function AdminHeader() {
   }
 
   return (
-    <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+    <header className="border-b border-slate-800/60 bg-slate-950/40 backdrop-blur-xl">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-6 w-6 text-cyan-400" />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                Easy Dollars Admin
-              </h1>
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <CashRiseLogo size={30} withText={false} />
+                <div className="absolute -bottom-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(255,180,84,0.9)]"></div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.35em] text-slate-400">Admin</div>
+                <div className="text-lg font-bold text-white">CashRise Control</div>
+              </div>
             </div>
           </div>
 

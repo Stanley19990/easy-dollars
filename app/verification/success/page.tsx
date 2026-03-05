@@ -59,8 +59,8 @@ export default function VerificationSuccess() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <Card className="w-full max-w-md border-slate-700 bg-slate-800">
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center">
+        <Card className="w-full max-w-md cr-glass">
           <CardContent className="pt-6">
             <div className="text-center">
               <Shield className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
@@ -77,8 +77,9 @@ export default function VerificationSuccess() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-emerald-950 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl border-emerald-500/20 bg-slate-800/50 backdrop-blur-sm overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+      <div className="cr-backdrop cr-grid"></div>
+      <Card className="w-full max-w-2xl cr-glass overflow-hidden relative z-10">
         {/* Confetti Background Effect */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-blue-500/5" />
         

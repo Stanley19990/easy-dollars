@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { Loader2, Gift, LogIn } from "lucide-react"
+import { CashRiseLogo } from "@/components/cashrise-logo"
+import { useLanguage } from "@/components/language-provider"
 
 interface SignupModalProps {
   open: boolean
@@ -18,11 +20,7 @@ interface SignupModalProps {
   onSwitchToLogin?: () => void
 }
 
-const africanCountries = [
-  "Nigeria", "Kenya", "South Africa", "Ghana", "Uganda", "Tanzania", 
-  "Ethiopia", "Morocco", "Algeria", "Egypt", "Cameroon", "Ivory Coast", 
-  "Madagascar", "Burkina Faso"
-]
+const africanCountries = ["Cameroon"]
 
 export function SignupModal({ 
   open, 
@@ -31,6 +29,7 @@ export function SignupModal({
   onSuccess,
   onSwitchToLogin
 }: SignupModalProps) {
+  const { t } = useLanguage()
   const { signUp } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -41,7 +40,7 @@ export function SignupModal({
     password: "",
     confirmPassword: "",
     fullName: "",
-    country: "",
+    country: "Cameroon",
     phone: "",
   })
 
@@ -118,10 +117,13 @@ export function SignupModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-800 neon-border text-cyan-300 max-w-md w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
+      <DialogContent className="cr-glass text-slate-100 max-w-md w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto border border-cyan-400/30">
         <DialogHeader>
-          <DialogTitle className="text-xl sm:text-2xl font-bold neon-text text-center">
-            Join Easy Dollars
+          <div className="flex justify-center">
+            <CashRiseLogo size={40} />
+          </div>
+          <DialogTitle className="text-xl sm:text-2xl font-bold text-center">
+            {t("joinCashRise")}
           </DialogTitle>
           <DialogDescription className="text-center text-slate-400 text-sm sm:text-base px-2">
             Create your account and start earning with AI gaming machines
@@ -151,43 +153,43 @@ export function SignupModal({
           )}
 
           <div>
-            <Label htmlFor="fullName" className="text-cyan-300 text-sm sm:text-base">
-              Full Name
+            <Label htmlFor="fullName" className="text-slate-200 text-sm sm:text-base">
+              {t("fullName")}
             </Label>
             <Input
               id="fullName"
               value={formData.fullName}
               onChange={(e) => handleInputChange('fullName', e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
+              className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
               required
               placeholder="Enter your full name"
             />
           </div>
 
           <div>
-            <Label htmlFor="email" className="text-cyan-300 text-sm sm:text-base">
-              Email
+            <Label htmlFor="email" className="text-slate-200 text-sm sm:text-base">
+              {t("email")}
             </Label>
             <Input
               id="email"
               type="email"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
+              className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
               required
               placeholder="Enter your email"
             />
           </div>
 
           <div>
-            <Label htmlFor="country" className="text-cyan-300 text-sm sm:text-base">
-              Country
+            <Label htmlFor="country" className="text-slate-200 text-sm sm:text-base">
+              {t("country")}
             </Label>
             <Select value={formData.country} onValueChange={(value) => handleInputChange('country', value)}>
-              <SelectTrigger className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto">
+              <SelectTrigger className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto">
                 <SelectValue placeholder="Select your country" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 max-h-[200px] sm:max-h-[300px]">
+              <SelectContent className="bg-slate-900 border-slate-700 max-h-[200px] sm:max-h-[300px]">
                 {africanCountries.map((country) => (
                   <SelectItem key={country} value={country} className="text-sm sm:text-base">
                     {country}
@@ -198,28 +200,28 @@ export function SignupModal({
           </div>
 
           <div>
-            <Label htmlFor="phone" className="text-cyan-300 text-sm sm:text-base">
-              Phone (Optional)
+            <Label htmlFor="phone" className="text-slate-200 text-sm sm:text-base">
+              {t("phoneOptional")}
             </Label>
             <Input
               id="phone"
               value={formData.phone}
               onChange={(e) => handleInputChange('phone', e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
+              className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
               placeholder="Enter your phone number"
             />
           </div>
 
           <div>
-            <Label htmlFor="password" className="text-cyan-300 text-sm sm:text-base">
-              Password
+            <Label htmlFor="password" className="text-slate-200 text-sm sm:text-base">
+              {t("password")}
             </Label>
             <Input
               id="password"
               type="password"
               value={formData.password}
               onChange={(e) => handleInputChange('password', e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
+              className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
               required
               placeholder="Create a password"
               minLength={6}
@@ -227,7 +229,7 @@ export function SignupModal({
           </div>
 
           <div>
-            <Label htmlFor="confirmPassword" className="text-cyan-300 text-sm sm:text-base">
+            <Label htmlFor="confirmPassword" className="text-slate-200 text-sm sm:text-base">
               Confirm Password
             </Label>
             <Input
@@ -235,21 +237,21 @@ export function SignupModal({
               type="password"
               value={formData.confirmPassword}
               onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
+              className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
               required
               placeholder="Confirm your password"
             />
           </div>
 
           <div>
-            <Label htmlFor="referralCode" className="text-cyan-300 text-sm sm:text-base">
+            <Label htmlFor="referralCode" className="text-slate-200 text-sm sm:text-base">
               Referral Code (Optional)
             </Label>
             <Input
               id="referralCode"
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value)}
-              className="bg-slate-700 border-cyan-500 text-cyan-300 text-sm sm:text-base h-10 sm:h-auto"
+              className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
               placeholder="Enter referral code if you have one"
             />
           </div>
@@ -257,10 +259,10 @@ export function SignupModal({
           <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold pulse-neon h-10 sm:h-auto text-sm sm:text-base"
+            className="w-full cr-button text-slate-950 font-bold h-10 sm:h-auto text-sm sm:text-base"
           >
             {loading && <Loader2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />}
-            Create Account
+            {t("createAccount")}
           </Button>
 
           <div className="relative">
@@ -268,7 +270,7 @@ export function SignupModal({
               <span className="w-full border-t border-slate-600" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-slate-800 px-2 text-slate-400">
+              <span className="bg-slate-900 px-2 text-slate-400">
                 Already have an account?
               </span>
             </div>
@@ -278,10 +280,10 @@ export function SignupModal({
             type="button"
             onClick={handleSwitchToLogin}
             variant="outline"
-            className="w-full border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300 hover:border-cyan-500/50 h-10 sm:h-auto text-sm sm:text-base"
+            className="w-full cr-outline-button hover:text-cyan-100 h-10 sm:h-auto text-sm sm:text-base"
           >
             <LogIn className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-            Login Here
+            {t("login")}
           </Button>
 
           <p className="text-xs text-slate-400 text-center px-2">

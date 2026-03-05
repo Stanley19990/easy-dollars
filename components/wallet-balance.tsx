@@ -160,50 +160,50 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
   const netEarningsXAF = totalEarned - stats.total_withdrawals
 
   return (
-    <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+    <Card className="cr-glass">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Wallet className="h-5 w-5 text-green-400" />
+            <Wallet className="h-5 w-5 text-emerald-300" />
             <span className="text-white">Wallet Overview</span>
           </div>
           <RefreshCw
-            className={`h-4 w-4 text-cyan-400 cursor-pointer ${loading ? 'animate-spin' : ''}`}
+            className={`h-4 w-4 text-cyan-200 cursor-pointer ${loading ? 'animate-spin' : ''}`}
             onClick={handleRefresh}
           />
         </CardTitle>
         <p className="text-slate-300 text-sm">
-          Your Easy Dollars wallet supports two currencies: XAF for real money and ED tokens for earnings from machines and ad watching.
+          Your CashRise wallet supports two currencies: XAF for real money and CR tokens for earnings from machines and ad watching.
         </p>
       </CardHeader>
       <CardContent>
         <div className="grid md:grid-cols-2 gap-6">
           {/* XAF Balance */}
-          <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg p-6">
+          <div className="bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">
-                <DollarSign className="h-5 w-5 text-green-400" />
-                <span className="text-sm font-medium text-green-300">Available Balance</span>
+                <DollarSign className="h-5 w-5 text-emerald-300" />
+                <span className="text-sm font-medium text-emerald-200">Available Balance</span>
               </div>
             </div>
-            <div className="text-3xl font-bold text-green-400 mb-2">
+            <div className="text-3xl font-bold text-emerald-300 mb-2">
               {walletBalance.toLocaleString()} XAF
             </div>
-            <p className="text-xs text-green-200/70">
+            <p className="text-xs text-emerald-100/70">
               Available for withdrawals • Min: 3,000 XAF
             </p>
           </div>
 
-          {/* ED Balance */}
-          <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg p-6">
+          {/* CR Balance */}
+          <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">
-                <Coins className="h-5 w-5 text-cyan-400" />
-                <span className="text-sm font-medium text-cyan-300">ED Balance</span>
+                <Coins className="h-5 w-5 text-cyan-300" />
+                <span className="text-sm font-medium text-cyan-200">CR Balance</span>
               </div>
             </div>
-            <div className="text-3xl font-bold text-cyan-400 mb-2">
-              {edBalance.toFixed(2)} ED
+            <div className="text-3xl font-bold text-cyan-300 mb-2">
+              {edBalance.toFixed(2)} CR
             </div>
             <p className="text-xs text-cyan-200/70">
               ≈ {edToXAF.toLocaleString()} XAF • Earned from machines & ads
@@ -214,33 +214,33 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
         {/* Earnings Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           {/* Total Lifetime Earnings */}
-          <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-lg p-4">
+          <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl p-4">
             <div className="flex items-center space-x-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-amber-400" />
-              <span className="text-sm font-medium text-amber-300">Total Earned</span>
+              <TrendingUp className="h-4 w-4 text-amber-300" />
+              <span className="text-sm font-medium text-amber-200">Total Earned</span>
             </div>
-            <div className="text-xl font-bold text-amber-400">
+            <div className="text-xl font-bold text-amber-300">
               {totalEarned.toLocaleString()} XAF
             </div>
-            <p className="text-xs text-amber-200/70 mt-1">Lifetime earnings</p>
+            <p className="text-xs text-amber-100/70 mt-1">Lifetime earnings</p>
           </div>
 
           {/* Net Earnings */}
-          <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-4">
-            <div className="text-sm font-medium text-purple-300 mb-2">Net Earnings</div>
-            <div className="text-xl font-bold text-purple-400">
+          <div className="bg-gradient-to-br from-indigo-500/10 to-fuchsia-500/10 border border-indigo-500/20 rounded-2xl p-4">
+            <div className="text-sm font-medium text-indigo-200 mb-2">Net Earnings</div>
+            <div className="text-xl font-bold text-indigo-300">
               {netEarningsXAF.toLocaleString()} XAF
             </div>
-            <p className="text-xs text-purple-200/70 mt-1">After withdrawals</p>
+            <p className="text-xs text-indigo-100/70 mt-1">After withdrawals</p>
           </div>
 
           {/* Daily Potential */}
-          <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-lg p-4">
-            <div className="text-sm font-medium text-blue-300 mb-2">Daily Potential</div>
-            <div className="text-xl font-bold text-blue-400">
+          <div className="bg-gradient-to-br from-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-2xl p-4">
+            <div className="text-sm font-medium text-cyan-200 mb-2">Daily Potential</div>
+            <div className="text-xl font-bold text-cyan-300">
               {stats.total_daily_earnings.toLocaleString()} XAF
             </div>
-            <p className="text-xs text-blue-200/70 mt-1">
+            <p className="text-xs text-cyan-100/70 mt-1">
               From {stats.total_machines} machines
             </p>
           </div>
@@ -248,26 +248,26 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
 
         {/* Machine Stats */}
         <div className="grid grid-cols-2 gap-4 mt-4">
-          <div className="bg-slate-800/30 rounded-lg p-3 text-center">
-            <div className="text-lg font-bold text-cyan-400">{stats.total_machines}</div>
+          <div className="bg-slate-900/60 rounded-2xl p-3 text-center border border-cyan-400/10">
+            <div className="text-lg font-bold text-cyan-300">{stats.total_machines}</div>
             <div className="text-xs text-slate-400">Total Machines</div>
           </div>
-          <div className="bg-slate-800/30 rounded-lg p-3 text-center">
-            <div className="text-lg font-bold text-green-400">{stats.active_machines}</div>
+          <div className="bg-slate-900/60 rounded-2xl p-3 text-center border border-cyan-400/10">
+            <div className="text-lg font-bold text-emerald-300">{stats.active_machines}</div>
             <div className="text-xs text-slate-400">Active Machines</div>
           </div>
         </div>
 
         {/* How It Works Section */}
-        <div className="mt-6 bg-slate-800/30 rounded-lg p-4">
+        <div className="mt-6 bg-slate-900/60 rounded-2xl p-4 border border-cyan-400/10">
           <div className="flex items-center space-x-2 mb-3">
-            <Info className="h-4 w-4 text-cyan-400" />
-            <span className="text-sm font-semibold text-cyan-300">How Your Wallet Works</span>
+            <Info className="h-4 w-4 text-cyan-200" />
+            <span className="text-sm font-semibold text-cyan-200">How Your Wallet Works</span>
           </div>
           <div className="text-xs text-slate-400 space-y-2">
             <p>• <strong>XAF (CFA Franc):</strong> Real money you can withdraw</p>
-            <p>• <strong>ED (Easy Dollars):</strong> Tokens earned from machines (1 ED = 60 XAF)</p>
-            <p>• Convert ED to XAF anytime using the converter</p>
+            <p>• <strong>CR (CashRise):</strong> Tokens earned from machines (1 CR = 60 XAF)</p>
+            <p>• Convert CR to XAF anytime using the converter</p>
             <p>• Minimum withdrawal: 3,000 XAF</p>
           </div>
         </div>

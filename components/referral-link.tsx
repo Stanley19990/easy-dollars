@@ -82,13 +82,13 @@ export function ReferralLink() {
   }
 
   const shareViaWhatsApp = () => {
-    const message = `Join me on Easy Dollars and start earning money by watching ads! Use my referral code: ${referralCode}\n\n${referralLink}`
+    const message = `Join me on CashRise and start earning money by watching ads! Use my referral code: ${referralCode}\n\n${referralLink}`
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank")
   }
 
   const shareViaEmail = () => {
-    const subject = "Join Easy Dollars and Start Earning!"
-    const body = `Hi!\n\nI've been using Easy Dollars to earn money by watching ads and it's amazing! You can earn up to 10x your investment in 30 days.\n\nUse my referral code: ${referralCode}\nSign up here: ${referralLink}\n\nLet's start earning together!`
+    const subject = "Join CashRise and Start Earning!"
+    const body = `Hi!\n\nI've been using CashRise to earn money by watching ads and it's amazing! You can earn up to 10x your investment in 30 days.\n\nUse my referral code: ${referralCode}\nSign up here: ${referralLink}\n\nLet's start earning together!`
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
   }
 

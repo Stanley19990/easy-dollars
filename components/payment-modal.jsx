@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CreditCard, Loader2, Phone, Smartphone, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
+import { CashRiseLogo } from "@/components/cashrise-logo"
 
 export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSuccess }) {
   const [processing, setProcessing] = useState(false)
@@ -130,8 +131,11 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
+      <DialogContent className="cr-glass border border-cyan-400/30 max-w-md">
         <DialogHeader>
+          <div className="flex justify-center">
+            <CashRiseLogo size={36} />
+          </div>
           <DialogTitle className="text-xl text-white text-center">
             Purchase {machine?.name || 'Machine'}
           </DialogTitle>
@@ -139,16 +143,16 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
 
         <div className="space-y-4">
           {hasDiscount && (
-            <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-3 animate-pulse">
+            <div className="bg-emerald-500/20 border border-emerald-500/30 rounded-2xl p-3 animate-pulse">
               <div className="flex items-center justify-between">
-                <span className="text-green-400 font-bold">🔥 5% DISCOUNT!</span>
+                <span className="text-emerald-300 font-bold">🔥 5% DISCOUNT!</span>
                 <span className="text-white font-bold">Save {discountAmount?.toLocaleString() || 0} XAF</span>
               </div>
             </div>
           )}
 
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded p-3">
-            <div className="flex items-start text-blue-300 text-sm">
+          <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-3">
+            <div className="flex items-start text-cyan-200 text-sm">
               <Smartphone className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="font-semibold">COMPLETE PAYMENT WITH USSD</p>
@@ -163,14 +167,14 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
 
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="phone" className="text-slate-300">Phone Number</Label>
+              <Label htmlFor="phone" className="text-slate-200">Phone Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                 <Input
                   id="phone"
                   value={phone}
                   onChange={handlePhoneChange}
-                  className={`pl-10 bg-slate-800 border-slate-700 text-white ${errorMessage ? 'border-red-500' : ''}`}
+                  className={`pl-10 bg-slate-900/70 border-slate-700 text-white ${errorMessage ? 'border-red-500' : ''}`}
                   placeholder="677123456 or 237677123456"
                   type="tel"
                   disabled={processing}
@@ -188,14 +192,14 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-300">Payment Method</Label>
+              <Label className="text-slate-200">Payment Method</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
                   variant={selectedMethod === "mobile_money" ? "default" : "outline"}
                   onClick={() => setSelectedMethod("mobile_money")}
                   disabled={processing}
-                  className={selectedMethod === "mobile_money" ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-700 hover:bg-slate-600"}
+                  className={selectedMethod === "mobile_money" ? "bg-emerald-400 hover:bg-emerald-500 text-slate-950" : "bg-slate-900/70 hover:bg-slate-800"}
                 >
                   MTN
                 </Button>
@@ -204,7 +208,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
                   variant={selectedMethod === "orange_money" ? "default" : "outline"}
                   onClick={() => setSelectedMethod("orange_money")}
                   disabled={processing}
-                  className={selectedMethod === "orange_money" ? "bg-orange-600 hover:bg-orange-700" : "bg-slate-700 hover:bg-slate-600"}
+                  className={selectedMethod === "orange_money" ? "bg-amber-400 hover:bg-amber-500 text-slate-950" : "bg-slate-900/70 hover:bg-slate-800"}
                 >
                   Orange
                 </Button>
@@ -212,29 +216,29 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
             </div>
           </div>
 
-          <div className="bg-slate-800/50 rounded-lg p-4">
+          <div className="bg-slate-900/60 rounded-2xl p-4 border border-cyan-400/10">
             {hasDiscount ? (
               <>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-slate-400">Original Price:</span>
-                  <span className="text-sm text-red-400 line-through">
+                  <span className="text-sm text-rose-300 line-through">
                     {machine?.price?.toLocaleString() || 0} XAF
                   </span>
                 </div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-slate-400">Discounted Price:</span>
-                  <span className="text-2xl font-bold text-green-400">
+                  <span className="text-2xl font-bold text-emerald-300">
                     {finalPrice?.toLocaleString() || 0} XAF
                   </span>
                 </div>
-                <div className="text-xs text-amber-400 font-bold text-center mt-1">
+                <div className="text-xs text-amber-300 font-bold text-center mt-1">
                   🔥 You save {discountAmount?.toLocaleString() || 0} XAF (5% OFF)
                 </div>
               </>
             ) : (
               <div className="flex justify-between items-center mb-2">
                 <span className="text-slate-400">Amount:</span>
-                <span className="text-2xl font-bold text-green-400">
+                <span className="text-2xl font-bold text-emerald-300">
                   {machine?.price?.toLocaleString() || 0} XAF
                 </span>
               </div>
@@ -249,7 +253,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           <Button
             onClick={handlePayment}
             disabled={processing || !phone.trim()}
-            className="w-full font-semibold py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:bg-slate-600 disabled:cursor-not-allowed"
+            className="w-full font-semibold py-3 cr-button text-slate-950 disabled:bg-slate-700 disabled:cursor-not-allowed"
           >
             {processing ? (
               <>
@@ -272,7 +276,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={processing}
-            className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
+            className="w-full cr-outline-button hover:text-cyan-100"
           >
             Cancel
           </Button>

@@ -84,29 +84,36 @@ export default function PromoModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white w-[90%] max-w-md p-6 rounded-2xl shadow-2xl animate-scaleIn text-center">
-        <div className="text-4xl mb-3">{getIcon()}</div>
-        <h2 className="text-xl font-bold mb-3">{title}</h2>
-        <p className="text-gray-600 mb-4">{message}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md cr-glass cr-card-3d rounded-3xl p-6 sm:p-7 text-center relative overflow-hidden">
+        <div className="absolute -top-24 -right-24 h-44 w-44 rounded-full bg-cyan-500/20 blur-2xl" />
+        <div className="absolute -bottom-24 -left-24 h-44 w-44 rounded-full bg-emerald-500/20 blur-2xl" />
 
-        {showButton && (
+        <div className="relative z-10">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/30 to-emerald-400/30 border border-cyan-400/30 shadow-[0_0_24px_rgba(55,199,255,0.3)]">
+            <span className="text-2xl">{getIcon()}</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">{title}</h2>
+          <p className="text-slate-300 mb-5 text-sm sm:text-base">{message}</p>
+
+          {showButton && (
+            <button
+              onClick={handleButtonClick}
+              className={`${getButtonColor()} text-white px-5 py-3 rounded-2xl mb-3 transition w-full font-bold shadow-lg hover:scale-[1.02]`}
+            >
+              {buttonText || (type === "referral" ? "Participate Now" : 
+               type === "announcement" ? "Go to Wallet" : 
+               "Withdraw Now")}
+            </button>
+          )}
+
           <button
-            onClick={handleButtonClick}
-            className={`${getButtonColor()} text-white px-5 py-2 rounded-lg mb-3 transition w-full font-bold`}
+            onClick={() => setOpen(false)}
+            className="text-rose-300 font-semibold hover:text-rose-200 transition"
           >
-            {buttonText || (type === "referral" ? "Participate Now" : 
-             type === "announcement" ? "Go to Wallet" : 
-             "Withdraw Now")}
+            Close
           </button>
-        )}
-
-        <button
-          onClick={() => setOpen(false)}
-          className="text-red-500 font-semibold hover:text-red-700 transition"
-        >
-          Close
-        </button>
+        </div>
       </div>
     </div>
   )

@@ -169,16 +169,16 @@ export function EarningsChart() {
 
   if (loading) {
     return (
-      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+      <Card className="cr-glass">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5 text-green-400" />
+            <TrendingUp className="h-5 w-5 text-emerald-300" />
             <span>Earnings Overview</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[300px] flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400"></div>
           </div>
         </CardContent>
       </Card>
@@ -186,24 +186,24 @@ export function EarningsChart() {
   }
 
   return (
-    <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+    <Card className="cr-glass">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5 text-green-400" />
+            <TrendingUp className="h-5 w-5 text-emerald-300" />
             <span>Earnings Overview</span>
           </CardTitle>
           <div className="flex items-center space-x-2">
             <select 
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value as '7days' | '30days')}
-              className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1 text-sm text-slate-200"
+              className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1 text-sm text-slate-200"
             >
               <option value="7days">Last 7 Days</option>
               <option value="30days">Last 30 Days</option>
             </select>
             <RefreshCw 
-              className={`h-4 w-4 text-cyan-400 cursor-pointer ${loading ? 'animate-spin' : ''}`}
+              className={`h-4 w-4 text-cyan-200 cursor-pointer ${loading ? 'animate-spin' : ''}`}
               onClick={handleRefresh}
             />
           </div>
@@ -216,7 +216,7 @@ export function EarningsChart() {
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={earningsData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis 
                 dataKey="date" 
                 stroke="#64748b" 
@@ -232,8 +232,8 @@ export function EarningsChart() {
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1e293b",
-                  border: "1px solid #334155",
+                  backgroundColor: "#0f172a",
+                  border: "1px solid #1e293b",
                   borderRadius: "8px",
                   color: "#f1f5f9",
                 }}
@@ -245,7 +245,7 @@ export function EarningsChart() {
               />
               <Bar
                 dataKey="earnings_xaf"
-                fill="#06b6d4"
+                fill="#16d9b6"
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
@@ -254,10 +254,10 @@ export function EarningsChart() {
         
         {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          <div className="text-center bg-slate-800/30 rounded-lg p-3">
+          <div className="text-center bg-slate-900/60 rounded-2xl p-3 border border-cyan-400/10">
             <div className="flex items-center justify-center space-x-1 mb-1">
-              <Calendar className="h-4 w-4 text-green-400" />
-              <div className="text-lg font-bold text-green-400">
+              <Calendar className="h-4 w-4 text-emerald-300" />
+              <div className="text-lg font-bold text-emerald-300">
                 {timeRange === '7days' 
                   ? chartStats.sevenDayTotal.toLocaleString() 
                   : chartStats.thirtyDayTotal.toLocaleString()
@@ -269,25 +269,25 @@ export function EarningsChart() {
             </div>
           </div>
           
-          <div className="text-center bg-slate-800/30 rounded-lg p-3">
+          <div className="text-center bg-slate-900/60 rounded-2xl p-3 border border-cyan-400/10">
             <div className="flex items-center justify-center space-x-1 mb-1">
-              <Zap className="h-4 w-4 text-cyan-400" />
-              <div className="text-lg font-bold text-cyan-400">
+              <Zap className="h-4 w-4 text-cyan-300" />
+              <div className="text-lg font-bold text-cyan-300">
                 {chartStats.bestDay.toLocaleString()} XAF
               </div>
             </div>
             <div className="text-xs text-slate-400">Best Day</div>
           </div>
           
-          <div className="text-center bg-slate-800/30 rounded-lg p-3">
-            <div className="text-lg font-bold text-purple-400 mb-1">
+          <div className="text-center bg-slate-900/60 rounded-2xl p-3 border border-cyan-400/10">
+            <div className="text-lg font-bold text-amber-300 mb-1">
               {Math.round(chartStats.dailyAverage).toLocaleString()} XAF
             </div>
             <div className="text-xs text-slate-400">Daily Average</div>
           </div>
           
-          <div className="text-center bg-slate-800/30 rounded-lg p-3">
-            <div className="text-lg font-bold text-amber-400 mb-1">
+          <div className="text-center bg-slate-900/60 rounded-2xl p-3 border border-cyan-400/10">
+            <div className="text-lg font-bold text-amber-200 mb-1">
               {chartStats.activeDays}
             </div>
             <div className="text-xs text-slate-400">Active Days</div>

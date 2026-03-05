@@ -172,7 +172,7 @@ export default function ReferralsPage() {
       return
     }
     
-    const message = `Join me on Easy Dollars and start earning money with AI gaming machines! Use my referral code: ${referralCode}\n\n${window.location.origin}/signup?ref=${referralCode}`
+    const message = `Join me on CashRise and start earning money with AI gaming machines! Use my referral code: ${referralCode}\n\n${window.location.origin}/signup?ref=${referralCode}`
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank")
   }
 
@@ -196,11 +196,11 @@ export default function ReferralsPage() {
 
   if (authLoading || pageLoading) {
     return (
-      <div className="min-h-screen bg-slate-950">
+      <div className="min-h-screen bg-[#070b13]">
         <DashboardHeader />
         <div className="flex items-center justify-center min-h-[60vh] px-4">
           <div className="text-center">
-            <Loader2 className="h-10 w-10 sm:h-12 sm:w-12 text-cyan-500 animate-spin mx-auto mb-3 sm:mb-4" />
+            <Loader2 className="h-10 w-10 sm:h-12 sm:w-12 text-emerald-400 animate-spin mx-auto mb-3 sm:mb-4" />
             <p className="text-slate-400 text-sm sm:text-base">Loading referral program...</p>
             <p className="text-slate-500 text-xs sm:text-sm mt-2">This may take a moment</p>
           </div>
@@ -211,7 +211,7 @@ export default function ReferralsPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center px-4">
         <div className="text-center">
           <p className="text-slate-400 text-sm sm:text-base">Please log in to view referrals</p>
         </div>
@@ -222,7 +222,8 @@ export default function ReferralsPage() {
   const referralUrl = `${window.location.origin}/signup?ref=${referralCode}`
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="cr-backdrop cr-grid"></div>
       <FloatingParticles />
       <div className="relative z-10">
         <DashboardHeader />
@@ -230,7 +231,7 @@ export default function ReferralsPage() {
         <main className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 lg:space-y-8">
           {/* Page Header */}
           <div className="text-center mb-4 sm:mb-6 lg:mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-2">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold cr-title cr-hero-text mb-2">
               Referral Program
             </h1>
             <p className="text-slate-400 text-xs sm:text-sm lg:text-base px-4">
@@ -242,22 +243,22 @@ export default function ReferralsPage() {
             {/* Left Section: Overview + History */}
             <div className="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
               {/* Referral Overview */}
-              <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
+              <div className="cr-glass rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4">
                 <h2 className="text-lg sm:text-xl font-bold text-white">Referral Overview</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                  <div className="bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl p-3 sm:p-4 text-center">
+                  <div className="bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-2xl p-3 sm:p-4 text-center">
                     <Users className="h-4 w-4 sm:h-5 sm:w-5 text-white mx-auto mb-2" />
                     <p className="text-xs sm:text-sm text-slate-200">Total Referrals</p>
                     <p className="text-xl sm:text-2xl font-bold text-white">{referralStats.totalReferrals}</p>
                   </div>
-                  <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl p-3 sm:p-4 text-center">
+                  <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-3 sm:p-4 text-center">
                     <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-white mx-auto mb-2" />
                     <p className="text-xs sm:text-sm text-slate-200">Total Bonus Earned</p>
                     <p className="text-xl sm:text-2xl font-bold text-white">
                       {referralStats.totalBonusEarned.toLocaleString()} XAF
                     </p>
                   </div>
-                  <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl p-3 sm:p-4 text-center">
+                  <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-3 sm:p-4 text-center">
                     <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-white mx-auto mb-2" />
                     <p className="text-xs sm:text-sm text-slate-200">Pending Bonus</p>
                     <p className="text-xl sm:text-2xl font-bold text-white">{referralStats.pendingReferrals}</p>
@@ -266,11 +267,11 @@ export default function ReferralsPage() {
               </div>
 
               {/* How It Works */}
-              <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 sm:p-6">
+              <div className="cr-glass rounded-2xl p-4 sm:p-6">
                 <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">How It Works</h2>
                 <div className="space-y-2 sm:space-y-3">
                   <div className="flex items-start space-x-2 sm:space-x-3">
-                    <div className="bg-cyan-500 rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-white text-xs sm:text-sm font-bold mt-0.5 flex-shrink-0">
+                    <div className="bg-emerald-400 rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-slate-900 text-xs sm:text-sm font-bold mt-0.5 flex-shrink-0">
                       1
                     </div>
                     <div>
@@ -279,7 +280,7 @@ export default function ReferralsPage() {
                     </div>
                   </div>
                   <div className="flex items-start space-x-2 sm:space-x-3">
-                    <div className="bg-cyan-500 rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-white text-xs sm:text-sm font-bold mt-0.5 flex-shrink-0">
+                    <div className="bg-emerald-400 rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-slate-900 text-xs sm:text-sm font-bold mt-0.5 flex-shrink-0">
                       2
                     </div>
                     <div>
@@ -288,7 +289,7 @@ export default function ReferralsPage() {
                     </div>
                   </div>
                   <div className="flex items-start space-x-2 sm:space-x-3">
-                    <div className="bg-cyan-500 rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-white text-xs sm:text-sm font-bold mt-0.5 flex-shrink-0">
+                    <div className="bg-emerald-400 rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-slate-900 text-xs sm:text-sm font-bold mt-0.5 flex-shrink-0">
                       3
                     </div>
                     <div>
@@ -300,7 +301,7 @@ export default function ReferralsPage() {
               </div>
 
               {/* Referral History Table */}
-              <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 sm:p-6">
+              <div className="cr-glass rounded-2xl p-4 sm:p-6">
                 <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">Referral History</h2>
                 {referralStats.referrals.length === 0 ? (
                   <div className="text-center py-6 sm:py-8">
@@ -329,7 +330,7 @@ export default function ReferralsPage() {
                               const StatusIcon = statusInfo.icon
                               
                               return (
-                                <tr key={referral.id} className="hover:bg-slate-700/30 border-b border-slate-700/50">
+                                <tr key={referral.id} className="hover:bg-slate-800/40 border-b border-slate-800/60">
                                   <td className="py-2 sm:py-3 px-2 sm:px-4">
                                     <div>
                                       <p className="font-medium text-white text-xs sm:text-sm">
@@ -350,7 +351,7 @@ export default function ReferralsPage() {
                                   </td>
                                   <td className="py-2 sm:py-3 px-2 sm:px-4">
                                     <span className={`font-semibold text-xs sm:text-sm whitespace-nowrap ${
-                                      referral.bonus > 0 ? 'text-green-400' : 'text-slate-400'
+                                      referral.bonus > 0 ? 'text-emerald-300' : 'text-slate-400'
                                     }`}>
                                       {referral.bonus > 0 ? `${referral.bonus.toLocaleString()} XAF` : '0 XAF'}
                                     </span>

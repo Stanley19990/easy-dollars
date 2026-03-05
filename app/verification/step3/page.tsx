@@ -317,7 +317,7 @@ export default function VerificationStep3() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center">
         <Card className="w-full max-w-md border-slate-700 bg-slate-800">
           <CardContent className="pt-6">
             <div className="text-center">
@@ -337,7 +337,7 @@ export default function VerificationStep3() {
   // NEW CHECK: Verify machine purchase eligibility
   if (!hasPurchasedMachine) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center p-4">
         <Card className="w-full max-w-md border-red-500/20 bg-slate-800/50 backdrop-blur-sm">
           <CardContent className="p-8">
             <div className="text-center">
@@ -375,7 +375,7 @@ export default function VerificationStep3() {
   // NEW CHECK: Verify 7-day waiting period
   if (machinePurchaseDays < 7) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center p-4">
         <Card className="w-full max-w-md border-yellow-500/20 bg-slate-800/50 backdrop-blur-sm">
           <CardContent className="p-8">
             <div className="text-center">
@@ -418,13 +418,14 @@ export default function VerificationStep3() {
   const canSubmit = frontId && selfie
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950">
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="cr-backdrop cr-grid"></div>
       {/* Header */}
-      <div className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+      <div className="border-b border-slate-800/60 bg-slate-950/40 backdrop-blur-xl relative z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Camera className="h-6 w-6 text-green-400" />
+              <Camera className="h-6 w-6 text-emerald-300" />
               <h1 className="text-xl font-bold text-white">ID Verification</h1>
             </div>
             <Button
@@ -439,7 +440,7 @@ export default function VerificationStep3() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Progress Bar */}
         <VerificationProgress currentStep={3} />
 

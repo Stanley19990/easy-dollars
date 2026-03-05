@@ -1,20 +1,12 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "@/hooks/use-auth"
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  display: 'swap',
-  preload: true,
-  fallback: ['system-ui', 'arial', 'sans-serif']
-})
+import { LanguageProvider } from "@/components/language-provider"
 
 export const metadata: Metadata = {
-  title: "Easy Dollars - Turn Time Into Cash",
-  description: "Buy machines, watch ads, and earn 10x your money in 30 days with Easy Dollars",
+  title: "CashRise - Invest, Play, Earn",
+  description: "Invest in AI gaming machines, watch ads, and grow your earnings with CashRise.",
   generator: "v0.dev",
 }
 
@@ -24,9 +16,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className={`${inter.className} antialiased`} suppressHydrationWarning>
-        <AuthProvider>{children}</AuthProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className="font-sans antialiased cr-theme" suppressHydrationWarning>
+        <LanguageProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </LanguageProvider>
       </body>
     </html>
   )

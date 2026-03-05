@@ -208,13 +208,13 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
 
   const getGradientClass = (machineId: string) => {
     const gradients: Record<string, string> = {
-      "1": "from-blue-500 to-cyan-500",
-      "2": "from-purple-500 to-pink-500", 
-      "3": "from-green-500 to-emerald-500",
-      "4": "from-orange-500 to-red-500",
-      "5": "from-red-500 to-pink-500",
-      "6": "from-yellow-500 to-amber-500",
-      "7": "from-indigo-500 to-purple-500",
+      "1": "from-cyan-500 to-emerald-500",
+      "2": "from-indigo-500 to-fuchsia-500", 
+      "3": "from-emerald-500 to-teal-500",
+      "4": "from-amber-500 to-orange-500",
+      "5": "from-rose-500 to-pink-500",
+      "6": "from-amber-400 to-yellow-500",
+      "7": "from-cyan-500 to-blue-500",
       "8": "from-pink-500 to-rose-500"
     }
     return gradients[machineId] || gradients["1"]
@@ -228,16 +228,16 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
 
   if (loading) {
     return (
-      <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+      <Card className="cr-glass">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <Zap className="h-5 w-5 text-purple-400" />
-            <span className="text-white">My AI Gaming Machines</span>
+            <Zap className="h-5 w-5 text-emerald-300" />
+            <span className="text-white">My CashRise Machines</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 text-cyan-500 animate-spin" />
+            <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
           </div>
         </CardContent>
       </Card>
@@ -245,12 +245,12 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
   }
 
   return (
-    <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+    <Card className="cr-glass">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center space-x-2">
-            <Zap className="h-6 w-6 text-purple-400" />
-            <span className="text-xl text-white">My AI Gaming Machines</span>
+            <Zap className="h-6 w-6 text-emerald-300" />
+            <span className="text-xl text-white">My CashRise Machines</span>
           </CardTitle>
         </div>
         <p className="text-slate-300 text-sm">
@@ -260,7 +260,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
       <CardContent>
         {userMachines.length === 0 ? (
           <div className="text-center py-12 text-slate-400">
-            <div className="bg-slate-800/50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+            <div className="bg-slate-900/60 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 border border-cyan-400/20">
               <Zap className="h-10 w-10 opacity-50" />
             </div>
             <p className="text-slate-300 text-lg font-semibold mb-2">No machines owned yet</p>
@@ -282,12 +282,12 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
               return (
                 <Card
                   key={machine.id}
-                  className="bg-slate-800/50 border-slate-700 hover:border-slate-600 transition-all duration-300 hover:shadow-lg"
+                  className="cr-glass cr-card-3d transition-all duration-300"
                 >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-6">
                       <div className="flex items-center space-x-4">
-                        <div className={`p-4 bg-gradient-to-r ${gradientClass} rounded-xl shadow-lg`}>
+                        <div className={`p-4 bg-gradient-to-r ${gradientClass} rounded-2xl shadow-lg`}>
                           {getMachineIcon(index)}
                         </div>
                         <div>
@@ -303,24 +303,24 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                       </div>
                       <div className="flex flex-col items-end space-y-2">
                         {isMining ? (
-                          <Badge variant="default" className="bg-blue-500/10 text-blue-300 border-blue-500/20 px-3 py-1">
-                            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse mr-2"></div>
+                          <Badge variant="default" className="bg-cyan-500/10 text-cyan-200 border-cyan-500/20 px-3 py-1">
+                            <div className="w-2 h-2 bg-cyan-300 rounded-full animate-pulse mr-2"></div>
                             Mining Active
                           </Badge>
                         ) : isNew ? (
-                          <Badge variant="default" className="bg-purple-500/10 text-purple-300 border-purple-500/20 px-3 py-1">
+                          <Badge variant="default" className="bg-emerald-500/10 text-emerald-300 border-emerald-500/20 px-3 py-1">
                             <Zap className="h-3 w-3 mr-1" />
                             New Machine
                           </Badge>
                         ) : (
-                          <Badge variant="default" className="bg-amber-500/10 text-amber-300 border-amber-500/20 px-3 py-1">
+                          <Badge variant="default" className="bg-amber-500/10 text-amber-200 border-amber-500/20 px-3 py-1">
                             <Clock className="h-3 w-3 mr-1" />
                             Ready to Start
                           </Badge>
                         )}
                         
                         {canClaim && (
-                          <Badge variant="default" className="bg-green-500/10 text-green-300 border-green-500/20 px-3 py-1 animate-pulse">
+                          <Badge variant="default" className="bg-emerald-500/10 text-emerald-300 border-emerald-500/20 px-3 py-1 animate-pulse">
                             <TrendingUp className="h-3 w-3 mr-1" />
                             Ready to Claim!
                           </Badge>
@@ -329,7 +329,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                     </div>
 
                     {/* Machine Image */}
-                    <div className="aspect-video rounded-xl overflow-hidden mb-6 shadow-lg relative">
+                    <div className="aspect-video rounded-2xl overflow-hidden mb-6 shadow-lg relative">
                       {machineData.image_url ? (
                         <img
                           src={machineData.image_url}
@@ -344,17 +344,17 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                       
                       {/* Mining Progress Overlay */}
                       {isMining && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-3">
+                        <div className="absolute bottom-0 left-0 right-0 bg-slate-950/70 backdrop-blur-sm p-3">
                           <div className="flex items-center justify-between text-sm text-white mb-2">
                             <div className="flex items-center space-x-2">
                               <Timer className="h-4 w-4" />
                               <span>{timeRemaining} remaining</span>
                             </div>
-                            <span className="text-green-400 font-bold">{Math.round(progress)}%</span>
+                            <span className="text-emerald-300 font-bold">{Math.round(progress)}%</span>
                           </div>
                           <div className="w-full bg-slate-600 rounded-full h-2">
                             <div 
-                              className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-300"
+                              className="bg-gradient-to-r from-emerald-400 to-cyan-400 h-2 rounded-full transition-all duration-300"
                               style={{ width: `${progress}%` }}
                             ></div>
                           </div>
@@ -363,33 +363,33 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                      <div className="bg-slate-700/30 rounded-lg p-4 text-center">
+                      <div className="bg-slate-900/60 rounded-2xl p-4 text-center border border-cyan-400/10">
                         <div className="text-xs text-slate-400 mb-1">Available Now</div>
-                        <div className="text-lg font-bold text-green-400">
+                        <div className="text-lg font-bold text-emerald-300">
                           {canClaim ? machineData.daily_earnings.toLocaleString() : '0'} XAF
                         </div>
                       </div>
 
-                      <div className="bg-slate-700/30 rounded-lg p-4 text-center">
+                      <div className="bg-slate-900/60 rounded-2xl p-4 text-center border border-cyan-400/10">
                         <div className="text-xs text-slate-400 mb-1">Daily Rate</div>
-                        <div className="text-lg font-bold text-amber-400">
+                        <div className="text-lg font-bold text-amber-300">
                           {machineData.daily_earnings.toLocaleString()} XAF
                         </div>
                       </div>
 
-                      <div className="bg-slate-700/30 rounded-lg p-4 text-center">
+                      <div className="bg-slate-900/60 rounded-2xl p-4 text-center border border-cyan-400/10">
                         <div className="text-xs text-slate-400 mb-1">Total Earned</div>
-                        <div className="text-lg font-bold text-yellow-400">
+                        <div className="text-lg font-bold text-amber-200">
                           {machine.total_earned.toLocaleString()} XAF
                         </div>
                       </div>
 
-                      <div className="bg-slate-700/30 rounded-lg p-4 text-center">
+                      <div className="bg-slate-900/60 rounded-2xl p-4 text-center border border-cyan-400/10">
                         <div className="text-xs text-slate-400 mb-1">Status</div>
                         <div className={`text-lg font-bold ${
-                          canClaim ? 'text-green-400' : 
-                          isMining ? 'text-blue-400' : 
-                          isNew ? 'text-purple-400' : 'text-amber-400'
+                          canClaim ? 'text-emerald-300' : 
+                          isMining ? 'text-cyan-300' : 
+                          isNew ? 'text-emerald-200' : 'text-amber-300'
                         }`}>
                           {canClaim ? 'Ready!' : 
                            isMining ? 'Mining' : 
@@ -399,13 +399,13 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                     </div>
 
                     {/* Mining Action Buttons */}
-                    <div className="pt-4 border-t border-slate-700">
+                    <div className="pt-4 border-t border-slate-800/80">
                       {canClaim ? (
                         <Button
                           size="lg"
                           onClick={() => handleClaimEarnings(machine.id)}
                           disabled={claimingMachine === machine.id}
-                          className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 font-bold text-lg py-6 shadow-lg"
+                          className="w-full cr-button text-slate-950 font-bold text-lg py-6 shadow-lg"
                         >
                           {claimingMachine === machine.id ? (
                             <>
@@ -423,7 +423,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                         <Button
                           size="lg"
                           disabled
-                          className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 font-bold text-lg py-6 shadow-lg cursor-not-allowed"
+                          className="w-full bg-gradient-to-r from-cyan-500 to-emerald-500 font-bold text-lg py-6 shadow-lg cursor-not-allowed text-slate-950"
                         >
                           <Timer className="h-5 w-5 mr-2" />
                           Mining... {timeRemaining}
@@ -433,7 +433,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                           size="lg"
                           onClick={() => handleStartMining(machine.id)}
                           disabled={activatingMachine === machine.id}
-                          className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 font-bold text-lg py-6 shadow-lg"
+                          className="w-full bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 font-bold text-lg py-6 shadow-lg text-slate-950"
                         >
                           {activatingMachine === machine.id ? (
                             <>
@@ -455,30 +455,30 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
             })}
 
             {/* Fleet Summary */}
-            <Card className="bg-gradient-to-r from-slate-800/50 to-slate-700/50 border-slate-600">
+            <Card className="cr-glass border border-cyan-400/20">
               <CardContent className="p-6">
                 <div className="text-center">
                   <h4 className="font-bold text-white text-xl mb-4">Fleet Performance Summary</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div>
                       <div className="text-slate-400 text-sm">Total Machines</div>
-                      <div className="text-cyan-400 font-bold text-2xl">{userMachines.length}</div>
+                      <div className="text-cyan-300 font-bold text-2xl">{userMachines.length}</div>
                     </div>
                     <div>
                       <div className="text-slate-400 text-sm">Active Machines</div>
-                      <div className="text-green-400 font-bold text-2xl">
+                      <div className="text-emerald-300 font-bold text-2xl">
                         {userMachines.filter(m => m.is_active).length}
                       </div>
                     </div>
                     <div>
                       <div className="text-slate-400 text-sm">Ready to Claim</div>
-                      <div className="text-amber-400 font-bold text-2xl">
+                      <div className="text-amber-300 font-bold text-2xl">
                         {userMachines.filter(m => canClaimEarnings(m)).length}
                       </div>
                     </div>
                     <div>
                       <div className="text-slate-400 text-sm">Total Earned</div>
-                      <div className="text-green-400 font-bold text-2xl">
+                      <div className="text-emerald-300 font-bold text-2xl">
                         {userMachines.reduce((sum, m) => sum + (m.total_earned || 0), 0).toLocaleString()} XAF
                       </div>
                     </div>

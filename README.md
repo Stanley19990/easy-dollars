@@ -1,4 +1,4 @@
-# Easy Dollars - AI-Powered Earning Platform
+# CashRise - AI-Powered Earning Platform
 
 A Next.js application that allows users to earn money by watching ads through AI-optimized virtual machines.
 

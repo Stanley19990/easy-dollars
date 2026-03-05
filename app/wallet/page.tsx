@@ -333,8 +333,8 @@ export default function WalletPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-cyan-500"></div>
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-400"></div>
       </div>
     )
   }
@@ -344,17 +344,18 @@ export default function WalletPage() {
   const currentBalance = walletData?.wallet_balance || 0
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="cr-backdrop cr-grid"></div>
       <FloatingParticles />
       <div className="relative z-10">
         <DashboardHeader />
         <main className="container mx-auto px-4 py-6 lg:py-8 space-y-6 lg:space-y-8">
           <div className="text-center mb-6 lg:mb-8">
-            <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-2">
+            <h1 className="text-2xl lg:text-3xl font-bold cr-title cr-hero-text mb-2">
               My Wallet
             </h1>
             <p className="text-slate-400 text-sm lg:text-base">
-              View your earnings, referrals, convert ED to XAF, and request withdrawals
+              View your earnings, referrals, convert CR to XAF, and request withdrawals
             </p>
           </div>
 
@@ -369,20 +370,20 @@ export default function WalletPage() {
             {/* Right Section */}
             <div className="space-y-6 lg:space-y-8">
               {/* Withdrawal Section */}
-              <div className="p-6 bg-slate-800/30 rounded-xl">
-                <h3 className="font-bold text-cyan-400 text-lg mb-2">Withdrawals</h3>
+              <div className="p-6 cr-glass rounded-2xl">
+                <h3 className="font-bold text-cyan-200 text-lg mb-2">Withdrawals</h3>
                 <p className="text-slate-400 text-sm mb-4">
                   {isSpecialUser ? (
-                    <>⚡ <strong className="text-green-400">Instant Withdrawals Enabled!</strong> Your withdrawals are approved immediately.</>
+                    <>⚡ <strong className="text-emerald-300">Instant Withdrawals Enabled!</strong> Your withdrawals are approved immediately.</>
                   ) : (
                     <>Withdrawals are available once you've completed <b>1 month</b> on the platform. After that, you may submit a request anytime.</>
                   )}
                 </p>
 
                 {/* Available Balance Display */}
-                <div className="bg-slate-700/50 rounded-lg p-4 mb-4">
+                <div className="bg-slate-900/60 rounded-2xl p-4 mb-4 border border-cyan-400/10">
                   <p className="text-slate-300 text-sm">Available Balance</p>
-                  <p className="text-2xl font-bold text-green-400">
+                  <p className="text-2xl font-bold text-emerald-300">
                     {currentBalance.toLocaleString()} XAF
                   </p>
                 </div>
@@ -399,7 +400,7 @@ export default function WalletPage() {
                     placeholder="Enter amount"
                     min="3000"
                     max={currentBalance}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                    className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-2xl text-white focus:outline-none focus:border-cyan-500"
                   />
                   <div className="text-xs text-slate-400 mt-1">
                     Minimum: 3,000 XAF • Maximum: {currentBalance.toLocaleString()} XAF
@@ -416,7 +417,7 @@ export default function WalletPage() {
                       <select
                         value={withdrawMethod}
                         onChange={(e) => setWithdrawMethod(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                        className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-2xl text-white focus:outline-none focus:border-cyan-500"
                       >
                         <option value="">Select payment method</option>
                         {paymentMethods.map((method) => (
@@ -435,7 +436,7 @@ export default function WalletPage() {
                         value={accountDetails}
                         onChange={(e) => setAccountDetails(e.target.value)}
                         placeholder="Enter your account details (account number, mobile money number, PayPal email, etc.)"
-                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500 min-h-[80px]"
+                        className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-2xl text-white focus:outline-none focus:border-cyan-500 min-h-[80px]"
                       />
                     </div>
                   </>
@@ -444,7 +445,7 @@ export default function WalletPage() {
                 <button
                   className={`w-full px-4 py-3 rounded-lg font-semibold ${
                     (isSpecialUser || canWithdraw)
-                      ? "bg-cyan-500 hover:bg-cyan-600 text-white"
+                      ? "cr-button text-slate-950"
                       : "bg-slate-600 text-slate-400 cursor-not-allowed"
                   }`}
                   onClick={handleWithdrawalRequest}
@@ -478,7 +479,7 @@ export default function WalletPage() {
                 )}
 
                 {isSpecialUser && (
-                  <p className="text-xs text-green-400 mt-2">
+                  <p className="text-xs text-emerald-300 mt-2">
                     ⚡ Instant withdrawals approved for your account
                   </p>
                 )}
@@ -487,7 +488,7 @@ export default function WalletPage() {
                 {isSpecialUser && currentBalance === 0 && (
                   <button
                     onClick={restoreBalance}
-                    className="w-full mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
+                    className="w-full mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-2xl text-sm"
                   >
                     🔄 Restore Balance (Emergency)
                   </button>
@@ -497,13 +498,13 @@ export default function WalletPage() {
           </div>
 
           {/* Referrals Table */}
-          <div className="mt-8 p-6 bg-slate-800/30 rounded-xl">
-            <h3 className="font-bold text-cyan-400 text-lg mb-4">Your Referrals & Bonuses</h3>
+          <div className="mt-8 p-6 cr-glass rounded-2xl">
+            <h3 className="font-bold text-cyan-200 text-lg mb-4">Your Referrals & Bonuses</h3>
             {referrals.length === 0 ? (
               <p className="text-slate-400">You have no referrals yet.</p>
             ) : (
               <table className="w-full text-sm text-left text-slate-300">
-                <thead className="text-xs uppercase bg-slate-700/50">
+                <thead className="text-xs uppercase bg-slate-900/70">
                   <tr>
                     <th className="px-4 py-2">Username</th>
                     <th className="px-4 py-2">Email</th>
@@ -513,10 +514,10 @@ export default function WalletPage() {
                 </thead>
                 <tbody>
                   {referrals.map((ref) => (
-                    <tr key={ref.id} className="border-b border-slate-700">
+                    <tr key={ref.id} className="border-b border-slate-800">
                       <td className="px-4 py-2">{ref.referred_user?.[0]?.username ?? ref.referred_user?.username ?? "N/A"}</td>
                       <td className="px-4 py-2">{ref.referred_user?.[0]?.email ?? ref.referred_user?.email ?? "N/A"}</td>
-                      <td className="px-4 py-2 font-bold text-green-400">{ref.bonus} XAF</td>
+                      <td className="px-4 py-2 font-bold text-emerald-300">{ref.bonus} XAF</td>
                       <td className="px-4 py-2">{new Date(ref.referral_date).toLocaleDateString()}</td>
                     </tr>
                   ))}

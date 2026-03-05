@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
 import { Loader2, Key } from "lucide-react"
+import { CashRiseLogo } from "@/components/cashrise-logo"
+import { useLanguage } from "@/components/language-provider"
 
 interface LoginModalProps {
   open: boolean
@@ -17,6 +19,7 @@ interface LoginModalProps {
 }
 
 export function LoginModal({ open, onOpenChange }: LoginModalProps) {
+  const { t } = useLanguage()
   const { signIn } = useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -62,11 +65,14 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-800 neon-border text-cyan-300 max-w-md">
+      <DialogContent className="cr-glass text-slate-100 max-w-md border border-cyan-400/30">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold neon-text text-center">Welcome Back</DialogTitle>
+          <div className="flex justify-center">
+            <CashRiseLogo size={40} />
+          </div>
+          <DialogTitle className="text-2xl font-bold text-center">{t("welcomeBack")}</DialogTitle>
           <DialogDescription className="text-center text-slate-400">
-            Login to your Easy Dollars account and continue earning
+            Login to your CashRise account and continue earning
           </DialogDescription>
         </DialogHeader>
 
@@ -76,29 +82,29 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
           )}
 
           <div>
-            <Label htmlFor="email" className="text-cyan-300">
-              Email
+            <Label htmlFor="email" className="text-slate-200">
+              {t("email")}
             </Label>
             <Input
               id="email"
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="bg-slate-700 border-cyan-500 text-cyan-300"
+              className="bg-slate-900/70 border-cyan-500/40 text-slate-100"
               required
             />
           </div>
 
           <div>
-            <Label htmlFor="password" className="text-cyan-300">
-              Password
+            <Label htmlFor="password" className="text-slate-200">
+              {t("password")}
             </Label>
             <Input
               id="password"
               type="password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="bg-slate-700 border-cyan-500 text-cyan-300"
+              className="bg-slate-900/70 border-cyan-500/40 text-slate-100"
               required
             />
           </div>
@@ -108,7 +114,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
             <button
               type="button"
               onClick={handleForgotPassword}
-              className="text-xs text-cyan-400 hover:text-cyan-300 hover:underline flex items-center justify-end gap-1"
+              className="text-xs text-cyan-200 hover:text-cyan-100 hover:underline flex items-center justify-end gap-1"
             >
               <Key className="h-3 w-3" />
               Forgot Password?
@@ -118,10 +124,10 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold pulse-neon"
+            className="w-full cr-button text-slate-950 font-bold"
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Login to Dashboard
+            {t("loginToDashboard")}
           </Button>
 
           <div className="text-center text-sm text-slate-400">
@@ -129,9 +135,9 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
             <button
               type="button"
               onClick={handleSignup}
-              className="text-cyan-400 hover:text-cyan-300 underline"
+              className="text-cyan-200 hover:text-cyan-100 underline"
             >
-              Sign up here
+              {t("signup")}
             </button>
           </div>
         </form>

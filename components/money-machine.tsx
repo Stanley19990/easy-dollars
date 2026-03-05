@@ -25,10 +25,10 @@ export function MoneyMachine({ className = "", delay = 0 }: MoneyMachineProps) {
   return (
     <div className={`relative ${className}`} style={{ animationDelay: `${delay}s` }}>
       {/* 3D Machine Body */}
-      <div className="w-16 h-16 bg-gradient-to-br from-slate-600 to-slate-800 rounded-lg neon-border relative">
+      <div className="w-16 h-16 bg-gradient-to-br from-slate-700 to-slate-900 rounded-2xl neon-border relative shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
         {/* Machine Screen */}
-        <div className="absolute inset-2 bg-cyan-400 rounded opacity-80 flex items-center justify-center">
-          <div className="text-xs font-bold text-slate-900">AD</div>
+        <div className="absolute inset-2 bg-gradient-to-br from-cyan-300 to-emerald-300 rounded-lg opacity-90 flex items-center justify-center">
+          <div className="text-[10px] font-bold text-slate-900">CR</div>
         </div>
 
         {/* Cash Flow Animation */}

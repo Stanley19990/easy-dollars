@@ -104,13 +104,14 @@ export default function VerificationGuidePage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950">
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="cr-backdrop cr-grid"></div>
       {/* Header */}
-      <div className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+      <div className="border-b border-slate-800/60 bg-slate-950/40 backdrop-blur-xl relative z-10">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg">
+              <div className="p-3 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-2xl">
                 <Shield className="h-6 w-6 text-white" />
               </div>
               <div>
@@ -121,7 +122,7 @@ export default function VerificationGuidePage() {
             <Button
               onClick={() => router.push("/dashboard")}
               variant="outline"
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              className="cr-outline-button hover:text-cyan-100"
             >
               Back to Dashboard
             </Button>
@@ -129,7 +130,7 @@ export default function VerificationGuidePage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Security Message Banner */}
         <div className="mb-8">
           <Card className="border-red-500/20 bg-gradient-to-r from-red-500/10 to-orange-500/10 backdrop-blur-sm">

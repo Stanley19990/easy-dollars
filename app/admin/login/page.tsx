@@ -8,8 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Shield } from "lucide-react"
 import { toast } from "sonner"
+import { CashRiseLogo } from "@/components/cashrise-logo"
 
 export default function AdminLoginPage() {
   const [credentials, setCredentials] = useState({ username: "", password: "" })
@@ -33,13 +33,13 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-slate-900 border-slate-800">
+    <div className="min-h-screen bg-[#070b13] flex items-center justify-center p-4">
+      <Card className="w-full max-w-md cr-glass">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 mx-auto bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center mb-4">
-            <Shield className="h-8 w-8 text-white" />
+          <div className="flex justify-center mb-3">
+            <CashRiseLogo size={40} />
           </div>
-          <CardTitle className="text-2xl bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+          <CardTitle className="text-2xl text-white">
             Admin Access
           </CardTitle>
         </CardHeader>
@@ -51,7 +51,7 @@ export default function AdminLoginPage() {
                 id="username"
                 value={credentials.username}
                 onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
-                className="bg-slate-800 border-slate-700 focus:border-cyan-500"
+                className="bg-slate-900/70 border-slate-700 focus:border-cyan-500 text-slate-100"
                 required
               />
             </div>
@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
                 type="password"
                 value={credentials.password}
                 onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                className="bg-slate-800 border-slate-700 focus:border-cyan-500"
+                className="bg-slate-900/70 border-slate-700 focus:border-cyan-500 text-slate-100"
                 required
               />
             </div>
@@ -71,7 +71,7 @@ export default function AdminLoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+              className="w-full cr-button text-slate-950"
             >
               {loading ? "Signing In..." : "Sign In"}
             </Button>

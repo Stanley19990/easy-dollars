@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button"
 import { NotificationBell } from '@/components/notification-bell'
 import PromoModal from "@/components/PromoModal"
 import WeeklyReferralModal from "@/components/WeeklyReferralModal"
-import LiveWithdrawals from "@/components/LiveWithdrawals"
 
 // Define types
 interface ReferredUser {
@@ -238,9 +237,9 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-emerald-400 mx-auto mb-4"></div>
           <p className="text-slate-400">Loading your dashboard...</p>
         </div>
       </div>
@@ -250,21 +249,13 @@ export default function DashboardPage() {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="cr-backdrop cr-grid"></div>
       <FloatingParticles />
       <NotificationBell />
       
       {/* 🔥 Weekly Referral Modal - Shows first */}
       <WeeklyReferralModal />
-      
-      {/* 🔥 ANNOUNCEMENT POPUP */}
-      <PromoModal
-        title="📢 Withdrawals Now Fully Available!"
-        message="Good news! The withdrawal system is now completely fixed. All users can now withdraw their earnings instantly without any restrictions."
-        showButton={true}
-        buttonText="Go to Wallet"
-        type="announcement"
-      />
       
       {/* 🔥 DISCOUNT POPUP */}
       <PromoModal
@@ -272,18 +263,7 @@ export default function DashboardPage() {
         message="50K, 100K and 150K machines are now discounted. Limited time offer."
         type="discount"
       />
-      
-      {/* 🔥 WITHDRAWAL POPUP */}
-      <PromoModal
-        title="💸 Withdrawals Now Enabled"
-        message="All users can now withdraw their earnings without restriction."
-        showButton={true}
-        buttonText="Withdraw Now"
-        type="withdrawal"
-      />
 
-      {/* 🔥 Live activity ticker */}
-      <LiveWithdrawals />
 
       <div className="relative z-10">
         <DashboardHeader />
@@ -299,7 +279,7 @@ export default function DashboardPage() {
             <Button 
               onClick={handleManualEarningsCalculation}
               disabled={calculatingEarnings}
-              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 px-8 py-3 text-lg font-bold"
+              className="cr-button px-8 py-3 text-lg font-bold text-slate-950"
             >
               {calculatingEarnings ? "🔄 Calculating..." : "💰 Calculate Daily Earnings"}
             </Button>
@@ -312,14 +292,14 @@ export default function DashboardPage() {
               <div className="xl:col-span-2 space-y-6">
                 <EarningsChart />
                 
-                <div className="bg-slate-800/30 rounded-xl p-6">
-                  <h3 className="font-bold text-cyan-400 text-lg mb-4">Recent Earnings</h3>
+                <div className="cr-glass rounded-2xl p-6">
+                  <h3 className="font-bold text-cyan-200 text-lg mb-4">Recent Earnings</h3>
                   {earningsHistory.length === 0 ? (
                     <p className="text-slate-400">No earnings recorded yet. Click "Calculate Daily Earnings" to start earning!</p>
                   ) : (
                     <div className="space-y-3">
                       {earningsHistory.map((earning) => (
-                        <div key={earning.id} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+                        <div key={earning.id} className="flex items-center justify-between p-3 bg-slate-900/60 rounded-xl border border-cyan-400/10">
                           <div>
                             <p className="text-white font-medium">{earning.machine?.name || 'Machine'}</p>
                             <p className="text-slate-400 text-sm">{new Date(earning.earned_at).toLocaleDateString()}</p>
@@ -339,8 +319,8 @@ export default function DashboardPage() {
                 <MyMachines onRefresh={refreshDashboard} />
                 
                 {todaysEarnings?.machineEstimates && todaysEarnings.machineEstimates.length > 0 && (
-                  <div className="bg-slate-800/30 rounded-xl p-6">
-                    <h3 className="font-bold text-cyan-400 text-lg mb-4">Today's Machine Earnings</h3>
+                  <div className="cr-glass rounded-2xl p-6">
+                    <h3 className="font-bold text-cyan-200 text-lg mb-4">Today's Machine Earnings</h3>
                     <div className="space-y-3">
                       {todaysEarnings.machineEstimates.map((machine, index) => (
                         <div key={index} className="flex items-center justify-between">
@@ -348,7 +328,7 @@ export default function DashboardPage() {
                           <span className="text-green-400 font-bold">+{machine.earnings} XAF</span>
                         </div>
                       ))}
-                      <div className="border-t border-slate-600 pt-2 mt-2">
+                      <div className="border-t border-slate-700/70 pt-2 mt-2">
                         <div className="flex items-center justify-between font-bold">
                           <span className="text-cyan-300">Total</span>
                           <span className="text-green-400">+{todaysEarnings.totalEstimated} XAF</span>
@@ -362,17 +342,17 @@ export default function DashboardPage() {
           </div>
 
           {/* Referrals Table */}
-          <div className="mt-8 p-6 bg-slate-800/30 rounded-xl">
-            <h3 className="font-bold text-cyan-400 text-lg mb-4">Your Referrals & Bonuses</h3>
+          <div className="mt-8 p-6 cr-glass rounded-2xl">
+            <h3 className="font-bold text-cyan-200 text-lg mb-4">Your Referrals & Bonuses</h3>
             {referrals.length === 0 ? (
               <p className="text-slate-400">You have no referrals yet.</p>
             ) : (
               <table className="w-full text-sm text-left text-slate-300">
-                <thead className="text-xs uppercase bg-slate-700/50">
+                <thead className="text-xs uppercase bg-slate-900/70">
                   <tr>
                     <th className="px-4 py-2">Username</th>
                     <th className="px-4 py-2">Email</th>
-                    <th className="px-4 py-2">Bonus (ED)</th>
+                    <th className="px-4 py-2">Bonus (CR)</th>
                     <th className="px-4 py-2">Date</th>
                   </tr>
                 </thead>

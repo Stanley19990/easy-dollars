@@ -28,8 +28,8 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-cyan-500"></div>
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-400"></div>
       </div>
     )
   }
@@ -39,7 +39,8 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="cr-backdrop cr-grid"></div>
       <FloatingParticles />
 
       <div className="relative z-10">
@@ -47,7 +48,7 @@ export default function AdminPage() {
 
         <main className="container mx-auto px-4 py-6 lg:py-8 space-y-6 lg:space-y-8">
           <div className="text-center mb-6 lg:mb-8">
-            <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-2">
+            <h1 className="text-2xl lg:text-3xl font-bold cr-title cr-hero-text mb-2">
               Admin Dashboard
             </h1>
             <p className="text-slate-400 text-sm lg:text-base">Manage users, withdrawals, and platform analytics</p>

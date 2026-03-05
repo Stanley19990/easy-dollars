@@ -192,7 +192,8 @@ export default function SocialLinksPage() {
   const totalLinks = SOCIAL_MEDIA_LINKS.length
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="cr-backdrop cr-grid"></div>
       <FloatingParticles />
       
       <div className="relative z-10 container mx-auto px-4 py-8">

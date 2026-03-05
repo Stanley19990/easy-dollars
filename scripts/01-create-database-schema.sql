@@ -1,4 +1,4 @@
--- Easy Dollars Database Schema
+-- CashRise Database Schema
 -- Run this script when you connect a database integration
 
 -- Users table

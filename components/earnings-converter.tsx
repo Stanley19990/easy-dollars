@@ -16,12 +16,12 @@ export function EarningsConverter() {
   const [converting, setConverting] = useState(false)
 
   // Conversion rates based on our system:
-  // 1 ED = $0.10 USD
+  // 1 CR = $0.10 USD
   // $1 USD = 600 XAF
-  // Therefore: 1 ED = 60 XAF
+  // Therefore: 1 CR = 60 XAF
   const edToUsdRate = 0.1
   const usdToXafRate = 600
-  const edToXafRate = 60 // 1 ED = 60 XAF
+  const edToXafRate = 60 // 1 CR = 60 XAF
 
   const usdAmount = Number.parseFloat(edAmount) * edToUsdRate || 0
   const xafAmount = Number.parseFloat(edAmount) * edToXafRate || 0
@@ -39,12 +39,12 @@ export function EarningsConverter() {
     }
 
     if (edToConvert > userEdBalance) {
-      toast.error("Insufficient ED balance")
+      toast.error("Insufficient CR balance")
       return
     }
 
     if (edToConvert < 10) {
-      toast.error("Minimum conversion amount is 10 ED")
+      toast.error("Minimum conversion amount is 10 CR")
       return
     }
 
@@ -70,7 +70,7 @@ export function EarningsConverter() {
 
       // Double-check balance
       if (edToConvert > currentEdBalance) {
-        toast.error("Insufficient ED balance")
+      toast.error("Insufficient CR balance")
         return
       }
 
@@ -105,8 +105,8 @@ export function EarningsConverter() {
         .insert({
           user_id: user.id,
           type: 'conversion',
-          description: `Converted ${edToConvert} ED to ${xafAmount.toLocaleString()} XAF ($${usdAmount.toFixed(2)} USD)`,
-          amount: -edToConvert, // Negative for ED deduction
+          description: `Converted ${edToConvert} CR to ${xafAmount.toLocaleString()} XAF ($${usdAmount.toFixed(2)} USD)`,
+          amount: -edToConvert, // Negative for CR deduction
           currency: 'ED',
           status: 'completed',
           external_id: `conv_${user.id}_${Date.now()}`,
@@ -130,7 +130,7 @@ export function EarningsConverter() {
         .insert({
           user_id: user.id,
           type: 'conversion_credit',
-          description: `Received ${xafAmount.toLocaleString()} XAF ($${usdAmount.toFixed(2)} USD) from ED conversion`,
+          description: `Received ${xafAmount.toLocaleString()} XAF ($${usdAmount.toFixed(2)} USD) from CR conversion`,
           amount: usdAmount,
           currency: 'USD',
           status: 'completed',
@@ -139,7 +139,7 @@ export function EarningsConverter() {
             conversion_rate: edToUsdRate,
             ed_amount: edToConvert,
             xaf_amount: xafAmount,
-            source: 'ed_conversion'
+            source: 'cr_conversion'
           }
         })
 
@@ -153,7 +153,7 @@ export function EarningsConverter() {
       // Refresh user data
       await refreshUser()
 
-      toast.success(`✅ Successfully converted ${edToConvert} ED to ${xafAmount.toLocaleString()} XAF!`)
+      toast.success(`✅ Successfully converted ${edToConvert} CR to ${xafAmount.toLocaleString()} XAF!`)
       setEdAmount("")
 
     } catch (error) {
@@ -168,13 +168,13 @@ export function EarningsConverter() {
   const quickConvert = (percentage: number) => {
     const userEdBalance = user?.ed_balance || 0
     if (userEdBalance <= 0) {
-      toast.error("No ED balance available")
+      toast.error("No CR balance available")
       return
     }
 
     const amount = Math.floor(userEdBalance * percentage)
     if (amount < 10) {
-      toast.error("Minimum conversion amount is 10 ED")
+      toast.error("Minimum conversion amount is 10 CR")
       return
     }
 
@@ -184,32 +184,32 @@ export function EarningsConverter() {
   if (!user) return null
 
   return (
-    <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
+    <Card className="cr-glass">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <ArrowRightLeft className="h-5 w-5 text-purple-400" />
-          <span>Convert ED to XAF</span>
+          <ArrowRightLeft className="h-5 w-5 text-amber-300" />
+          <span>Convert CR to XAF</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {/* Current Balances */}
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+            <div className="bg-slate-900/60 rounded-2xl p-3 text-center border border-cyan-400/10">
               <div className="flex items-center justify-center space-x-2 mb-1">
-                <Zap className="h-4 w-4 text-cyan-400" />
-                <span className="text-sm text-slate-400">ED Balance</span>
+                <Zap className="h-4 w-4 text-cyan-300" />
+                <span className="text-sm text-slate-400">CR Balance</span>
               </div>
-              <div className="text-lg font-bold text-cyan-400">
-                {(user.ed_balance || 0).toFixed(2)} ED
+              <div className="text-lg font-bold text-cyan-300">
+                {(user.ed_balance || 0).toFixed(2)} CR
               </div>
             </div>
-            <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+            <div className="bg-slate-900/60 rounded-2xl p-3 text-center border border-cyan-400/10">
               <div className="flex items-center justify-center space-x-2 mb-1">
-                <TrendingUp className="h-4 w-4 text-green-400" />
+                <TrendingUp className="h-4 w-4 text-emerald-300" />
                 <span className="text-sm text-slate-400">Available Balance</span>
               </div>
-              <div className="text-lg font-bold text-green-400">
+              <div className="text-lg font-bold text-emerald-300">
                 {((user.wallet_balance || 0) * 600).toLocaleString()} XAF
               </div>
               <div className="text-xs text-slate-400">
@@ -219,14 +219,14 @@ export function EarningsConverter() {
           </div>
 
           {/* Conversion Rate */}
-          <div className="bg-slate-800/50 rounded-lg p-4">
+          <div className="bg-slate-900/60 rounded-2xl p-4 border border-cyan-400/10">
             <div className="text-center mb-2">
               <div className="text-sm text-slate-400 mb-1">Current Exchange Rate</div>
-              <div className="text-lg font-semibold text-purple-400">1 ED = 60 XAF</div>
+              <div className="text-lg font-semibold text-amber-300">1 CR = 60 XAF</div>
               <div className="text-sm text-slate-300">($0.10 USD = 60 XAF)</div>
             </div>
             <div className="text-xs text-slate-400 text-center">
-              Fixed rate • Minimum conversion: 10 ED
+              Fixed rate • Minimum conversion: 10 CR
             </div>
           </div>
 
@@ -238,7 +238,7 @@ export function EarningsConverter() {
                 type="button"
                 variant="outline"
                 onClick={() => quickConvert(0.25)}
-                className="text-xs py-1 h-auto bg-slate-800 hover:bg-slate-700 border-slate-600"
+                className="text-xs py-1 h-auto bg-slate-900/70 hover:bg-slate-800 border-slate-700"
               >
                 25%
               </Button>
@@ -246,7 +246,7 @@ export function EarningsConverter() {
                 type="button"
                 variant="outline"
                 onClick={() => quickConvert(0.5)}
-                className="text-xs py-1 h-auto bg-slate-800 hover:bg-slate-700 border-slate-600"
+                className="text-xs py-1 h-auto bg-slate-900/70 hover:bg-slate-800 border-slate-700"
               >
                 50%
               </Button>
@@ -254,7 +254,7 @@ export function EarningsConverter() {
                 type="button"
                 variant="outline"
                 onClick={() => quickConvert(1)}
-                className="text-xs py-1 h-auto bg-slate-800 hover:bg-slate-700 border-slate-600"
+                className="text-xs py-1 h-auto bg-slate-900/70 hover:bg-slate-800 border-slate-700"
               >
                 100%
               </Button>
@@ -265,8 +265,8 @@ export function EarningsConverter() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="edAmount" className="flex items-center space-x-2">
-                <Coins className="h-4 w-4 text-cyan-400" />
-                <span>ED Amount</span>
+                <Coins className="h-4 w-4 text-cyan-300" />
+                <span>CR Amount</span>
               </Label>
               <Input
                 id="edAmount"
@@ -277,26 +277,26 @@ export function EarningsConverter() {
                 min="10"
                 max={user.ed_balance ?? 0}
                 step="1"
-                className="bg-slate-800 border-slate-700 focus:border-cyan-500 text-cyan-400 text-center text-lg font-semibold"
+                className="bg-slate-900/70 border-slate-700 focus:border-cyan-500 text-cyan-200 text-center text-lg font-semibold"
               />
               <div className="text-xs text-slate-400 text-center">
-                Available: {(user.ed_balance ?? 0).toFixed(2)} ED
+                Available: {(user.ed_balance ?? 0).toFixed(2)} CR
               </div>
             </div>
 
             {/* Conversion Arrow */}
             <div className="flex justify-center">
-              <ArrowRightLeft className="h-6 w-6 text-purple-400" />
+              <ArrowRightLeft className="h-6 w-6 text-amber-300" />
             </div>
 
             {/* XAF Amount Display */}
             <div className="space-y-2">
               <Label className="flex items-center justify-center space-x-2">
-                <TrendingUp className="h-4 w-4 text-green-400" />
+                <TrendingUp className="h-4 w-4 text-emerald-300" />
                 <span>You Will Receive</span>
               </Label>
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-green-400 mb-1">
+              <div className="bg-slate-900/70 border border-slate-700 rounded-2xl p-4 text-center">
+                <div className="text-2xl font-bold text-emerald-300 mb-1">
                   {xafAmount.toLocaleString()} XAF
                 </div>
                 <div className="text-sm text-slate-400">
@@ -315,7 +315,7 @@ export function EarningsConverter() {
               Number.parseFloat(edAmount) < 10 ||
               Number.parseFloat(edAmount) > (user.ed_balance ?? 0)
             }
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 font-semibold py-3"
+            className="w-full cr-button text-slate-950 font-semibold py-3"
           >
             {converting ? (
               <div className="flex items-center space-x-2">
@@ -334,7 +334,7 @@ export function EarningsConverter() {
           <div className="text-xs text-slate-400 text-center space-y-1">
             <div>✅ Converted XAF will be added to your available balance</div>
             <div>💳 Use your XAF balance for withdrawals or purchases</div>
-            <div>💰 1 ED = 60 XAF • $1 USD = 600 XAF</div>
+            <div>💰 1 CR = 60 XAF • $1 USD = 600 XAF</div>
           </div>
         </div>
       </CardContent>

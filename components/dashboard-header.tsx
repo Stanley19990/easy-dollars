@@ -13,8 +13,12 @@ import { ProfileModal } from "@/components/profile-modal"
 import { VerificationModal } from "@/components/verification-modal"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
+import { CashRiseLogo } from "@/components/cashrise-logo"
+import { LanguageSwitcher } from "@/components/language-switcher"
+import { useLanguage } from "@/components/language-provider"
 
 export function DashboardHeader() {
+  const { t } = useLanguage()
   const { user, signOut } = useAuth()
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -196,7 +200,7 @@ export function DashboardHeader() {
 
   return (
     <>
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+      <header className="border-b border-slate-800/60 bg-slate-950/40 backdrop-blur-xl">
         {/* Verification Prompt Banner */}
         {showVerificationPrompt && (
           <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-b border-cyan-500/20">
@@ -243,14 +247,14 @@ export function DashboardHeader() {
           </div>
         )}
 
-        <div className="container mx-auto px-4 py-3 md:py-4">
+          <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between">
             {/* Logo and Welcome */}
             <div className="flex items-center space-x-2 md:space-x-4">
               <Link href="/dashboard">
-                <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent cursor-pointer">
-                  Easy Dollars
-                </h1>
+                <div className="cursor-pointer">
+                  <CashRiseLogo size={34} />
+                </div>
               </Link>
               <div className="hidden lg:flex items-center space-x-2">
                 <span className="text-slate-400 text-sm">
@@ -291,21 +295,21 @@ export function DashboardHeader() {
               <Link href="/social-links">
                 <Button variant="ghost" size="sm" className="text-slate-400 hover:text-cyan-400">
                   <Users className="h-4 w-4 lg:mr-2" />
-                  <span className="hidden lg:inline">Social Links</span>
+                  <span className="hidden lg:inline">{t("socialLinks")}</span>
                 </Button>
               </Link>
 
               <Link href="/referrals">
                 <Button variant="ghost" size="sm" className="text-slate-400 hover:text-purple-400">
                   <Users className="h-4 w-4 lg:mr-2" />
-                  <span className="hidden lg:inline">Referrals</span>
+                  <span className="hidden lg:inline">{t("referrals")}</span>
                 </Button>
               </Link>
 
               <Link href="/wallet">
                 <Button variant="ghost" size="sm" className="text-slate-400 hover:text-green-400">
                   <Wallet className="h-4 w-4 lg:mr-2" />
-                  <span className="hidden lg:inline">Wallet</span>
+                  <span className="hidden lg:inline">{t("wallet")}</span>
                 </Button>
               </Link>
 
@@ -313,10 +317,12 @@ export function DashboardHeader() {
                 <Link href="/admin">
                   <Button variant="ghost" size="sm" className="text-slate-400 hover:text-orange-400">
                     <Shield className="h-4 w-4 lg:mr-2" />
-                    <span className="hidden lg:inline">Admin</span>
+                    <span className="hidden lg:inline">{t("admin")}</span>
                   </Button>
                 </Link>
               )}
+
+              <LanguageSwitcher compact />
 
               <Button variant="ghost" size="sm" className="text-slate-400 hover:text-cyan-400">
                 <Bell className="h-4 w-4" />
@@ -334,7 +340,7 @@ export function DashboardHeader() {
 
                 <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-slate-400 hover:text-red-400">
                   <LogOut className="h-4 w-4 lg:mr-2" />
-                  <span className="hidden lg:inline">Sign Out</span>
+                  <span className="hidden lg:inline">{t("signOut")}</span>
                 </Button>
               </div>
             </div>
@@ -376,6 +382,9 @@ export function DashboardHeader() {
             <div className="md:hidden mt-4 pb-4 border-t border-slate-800">
               <div className="flex flex-col space-y-2 pt-4">
                 <div className="text-slate-400 text-sm mb-2 px-2">Welcome, {getDisplayName()}</div>
+                <div className="px-2">
+                  <LanguageSwitcher />
+                </div>
 
                 {/* Mobile Verification Button */}
                 <Button
@@ -395,21 +404,21 @@ export function DashboardHeader() {
                 <Link href="/social-links" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-cyan-400">
                     <Users className="h-4 w-4 mr-3" />
-                    Social Links
+                    {t("socialLinks")}
                   </Button>
                 </Link>
 
                 <Link href="/referrals" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-purple-400">
                     <Users className="h-4 w-4 mr-3" />
-                    Referrals
+                    {t("referrals")}
                   </Button>
                 </Link>
 
                 <Link href="/wallet" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-green-400">
                     <Wallet className="h-4 w-4 mr-3" />
-                    Wallet
+                    {t("wallet")}
                   </Button>
                 </Link>
 
@@ -417,14 +426,14 @@ export function DashboardHeader() {
                   <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-orange-400">
                       <Shield className="h-4 w-4 mr-3" />
-                      Admin Panel
+                      {t("admin")}
                     </Button>
                   </Link>
                 )}
 
                 <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-cyan-400">
                   <Bell className="h-4 w-4 mr-3" />
-                  Notifications
+                  {t("notifications")}
                 </Button>
 
                 <Button
@@ -445,7 +454,7 @@ export function DashboardHeader() {
                   className="w-full justify-start text-slate-400 hover:text-red-400 mt-4 border-t border-slate-800 pt-4"
                 >
                   <LogOut className="h-4 w-4 mr-3" />
-                  Sign Out
+                  {t("signOut")}
                 </Button>
               </div>
             </div>
