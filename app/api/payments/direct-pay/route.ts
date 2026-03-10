@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       email: userEmail || "customer@easydollars.com",
       userId: userId,
       externalId: externalId,
-      message: `Purchase ${machineName} - EasyDollars`
+      message: `Purchase ${machineName} - CashRise`
     }
 
     console.log('📤 Calling Fapshi API...')

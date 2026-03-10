@@ -1,7 +1,7 @@
 // components/my-machines.tsx - FIXED
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -38,6 +38,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
   const [loading, setLoading] = useState(true)
   const [activatingMachine, setActivatingMachine] = useState<string | null>(null)
   const [claimingMachine, setClaimingMachine] = useState<string | null>(null)
+  const repairRanRef = useRef(false)
 
   useEffect(() => {
     loadUserMachines()
@@ -45,6 +46,18 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
     // Auto-refresh every 60 seconds to update timers
     const interval = setInterval(loadUserMachines, 60000)
     return () => clearInterval(interval)
+  }, [user])
+
+  useEffect(() => {
+    if (!user || repairRanRef.current) return
+    repairRanRef.current = true
+    fetch("/api/machines/repair", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id })
+    })
+      .then(() => loadUserMachines())
+      .catch(() => null)
   }, [user])
 
   const loadUserMachines = async () => {

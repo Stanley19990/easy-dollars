@@ -1,7 +1,7 @@
 // components/machine-marketplace.tsx - UPDATED WITH REFERRAL BONUS TRIGGER
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -41,6 +41,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   // ✅ FIX: Track active payment for status polling
   const [activePaymentTransId, setActivePaymentTransId] = useState<string | null>(null)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
+  const repairRanRef = useRef(false)
 
   // Fetch machines from database
   const fetchMachinesFromDatabase = async () => {
@@ -91,6 +92,16 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     fetchMachinesFromDatabase()
     if (user) {
       fetchUserMachines()
+      if (!repairRanRef.current) {
+        repairRanRef.current = true
+        fetch("/api/machines/repair", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id })
+        })
+          .then(() => fetchUserMachines())
+          .catch(() => null)
+      }
     }
   }, [user])
 

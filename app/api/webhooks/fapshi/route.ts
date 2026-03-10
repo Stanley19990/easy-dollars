@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ FAPSHI_WEBHOOK_SECRET not set - skipping signature verification')
     }
 
-    const { transId, status, externalId, userId, amount } = webhookData
+    const { transId, status, externalId } = webhookData
 
     // Validate required fields
     if (!transId || !status || !externalId) {
@@ -59,11 +59,14 @@ export async function POST(request: NextRequest) {
     // Clean up old processed webhooks after 10 minutes
     setTimeout(() => processedWebhooks.delete(transId), 10 * 60 * 1000)
 
+    const normalizedStatus = typeof status === "string" ? status.toLowerCase() : "unknown"
+    const isSuccess = ["successful", "success", "completed", "complete"].includes(normalizedStatus)
+
     // Update transaction status in database
     const { error: updateError } = await supabase
       .from('transactions')
       .update({ 
-        status: status.toLowerCase(),
+        status: isSuccess ? "successful" : normalizedStatus,
         updated_at: new Date().toISOString()
       })
       .eq('fapshi_trans_id', transId)
@@ -72,11 +75,21 @@ export async function POST(request: NextRequest) {
       console.error('❌ Transaction update error:', updateError)
     }
 
-    console.log('🔄 Payment Status Updated:', { transId, status })
+    console.log('🔄 Payment Status Updated:', { transId, status: normalizedStatus })
 
     // ✅ FIX: Activate machine and process referral bonus if payment is successful
-    if (status.toLowerCase() === 'successful') {
-      await activateUserMachine(userId, externalId)
+    if (isSuccess) {
+      const { data: transaction, error: txError } = await supabase
+        .from('transactions')
+        .select('user_id, external_id')
+        .eq('fapshi_trans_id', transId)
+        .single()
+
+      if (txError || !transaction) {
+        console.error('❌ Unable to load transaction for activation:', txError)
+      } else {
+        await activateUserMachine(transaction.user_id, transaction.external_id)
+      }
     }
 
     return NextResponse.json({ received: true })
