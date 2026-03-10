@@ -38,6 +38,7 @@ interface MachineEstimate {
 export default function DashboardPage() {
   const { user, loading, refreshUser } = useAuth()
   const router = useRouter()
+  const [repairTriggered, setRepairTriggered] = useState(false)
 
   const [referrals, setReferrals] = useState<Referral[]>([])
   const [todaysEarnings, setTodaysEarnings] = useState({
@@ -71,6 +72,16 @@ export default function DashboardPage() {
       ])
     }
   }, [user])
+
+  useEffect(() => {
+    if (!user || repairTriggered) return
+    setRepairTriggered(true)
+    fetch("/api/machines/repair", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id })
+    }).catch(() => null)
+  }, [user, repairTriggered])
 
   // Fetch referrals
   const fetchReferrals = async () => {

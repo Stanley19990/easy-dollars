@@ -49,6 +49,29 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
   }, [user])
 
   useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel(`user-machines-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "user_machines",
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          loadUserMachines()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user])
+
+  useEffect(() => {
     if (!user || repairRanRef.current) return
     repairRanRef.current = true
     fetch("/api/machines/repair", {

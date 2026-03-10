@@ -105,6 +105,29 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     }
   }, [user])
 
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel(`user-machines-market-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "user_machines",
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          fetchUserMachines()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user])
+
   // ✅ FIX: Poll for payment status when there's an active payment
   useEffect(() => {
     if (!activePaymentTransId || !user) {
@@ -181,6 +204,13 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         } catch (bonusError) {
           console.error('⚠️ Referral bonus error (non-critical):', bonusError)
         }
+
+        // Ensure machine is present even if webhook is delayed
+        await fetch("/api/machines/repair", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: transaction.user_id })
+        }).catch(() => null)
 
         // Refresh user machines
         await fetchUserMachines()

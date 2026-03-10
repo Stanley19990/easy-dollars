@@ -121,80 +121,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .replace(/[^a-z0-9]/g, '')
         .substring(0, 20) + Math.random().toString(36).substring(2, 6)
 
-      // Step 4: Create user profile in public.users table
+      // Step 4: Create user profile + referral record via server (bypasses RLS)
       try {
-        console.log("📝 Creating user profile in public.users...")
-        
-        const userProfile = {
-          id: data.user.id,
-          email: data.user.email,
-          username: username,
-          full_name: fullName,
-          country: country,
-          phone: phone || null,
-          referral_code: newUserReferralCode,
-          referred_by: referralCode || null,
-          wallet_balance: 0,
-          ed_balance: 0,
-          total_earned: 0,
-          machines_owned: 0,
-          social_media_completed: false,
-          social_media_bonus_paid: false
+        console.log("📝 Creating user profile via API...")
+        const profileResponse = await fetch("/api/auth/create-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: data.user.id,
+            email: data.user.email,
+            fullName,
+            country,
+            phone,
+            referralCode: referralCode || null,
+            generatedReferralCode: newUserReferralCode,
+            generatedUsername: username
+          })
+        })
+
+        if (!profileResponse.ok) {
+          const profileResult = await profileResponse.json().catch(() => null)
+          const profileError = profileResult?.error || "Failed to create user profile"
+          console.error("❌ Profile API error:", profileError)
+          return { user: null, error: profileError }
         }
 
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert(userProfile)
-
-        if (profileError) {
-          console.error("❌ User profile creation failed:", profileError)
-          
-          const { error: upsertError } = await supabase
-            .from('users')
-            .upsert(userProfile)
-            
-          if (upsertError) {
-            console.error("❌ User profile upsert also failed:", upsertError)
-            return { user: null, error: "Failed to create user profile" }
-          } else {
-            console.log("✅ User profile created via upsert")
-          }
-        } else {
-          console.log("✅ User profile created successfully")
-        }
-
+        console.log("✅ User profile created successfully via API")
       } catch (profileError: any) {
         console.error("💥 Exception creating user profile:", profileError)
         return { user: null, error: "Failed to create user profile" }
-      }
-
-      // Step 5: Process referral using RPC function (bypasses RLS)
-      if (referralCode && data.user.id) {
-        try {
-          console.log("🔄 Processing referral code:", referralCode)
-          console.log("   New user ID:", data.user.id)
-          
-          const cleanReferralCode = referralCode.trim()
-          console.log("   Cleaned referral code:", cleanReferralCode)
-          
-          // Call a database function that bypasses RLS
-          const { data: rpcResult, error: rpcError } = await supabase.rpc('create_referral_record', {
-            p_referral_code: cleanReferralCode,
-            p_new_user_id: data.user.id
-          })
-          
-          if (rpcError) {
-            console.error("❌ RPC error:", rpcError)
-            console.warn("⚠️ Signup will continue, but referral not linked")
-          } else {
-            console.log("✅ Referral created via RPC:", rpcResult)
-          }
-          
-        } catch (referralError) {
-          console.error("💥 Exception processing referral:", referralError)
-        }
-      } else {
-        console.log("ℹ️ No referral code provided, skipping referral processing")
       }
 
       console.log("🎉 Signup completed successfully!")
