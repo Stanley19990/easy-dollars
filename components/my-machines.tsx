@@ -1,4 +1,4 @@
-// components/my-machines.tsx - FIXED
+// components/my-machines.tsx - FIXED WITH LIVE COUNTDOWN
 "use client"
 
 import { useState, useEffect, useRef } from "react"
@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Zap, Cpu, BarChart3, DollarSign, Image as ImageIcon, Timer, CheckCircle, Clock, TrendingUp, Loader2 } from "lucide-react"
+import { Zap, Cpu, BarChart3, DollarSign, Image as ImageIcon, Timer, CheckCircle, Clock, TrendingUp, Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 
@@ -38,12 +38,22 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
   const [loading, setLoading] = useState(true)
   const [activatingMachine, setActivatingMachine] = useState<string | null>(null)
   const [claimingMachine, setClaimingMachine] = useState<string | null>(null)
+  const [currentTime, setCurrentTime] = useState(new Date())
   const repairRanRef = useRef(false)
+
+  // ✅ FIX: Live countdown timer - updates every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000) // Update every second for live countdown
+    
+    return () => clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     loadUserMachines()
     
-    // Auto-refresh every 60 seconds to update timers
+    // Also refresh every 60 seconds to get updated data from server
     const interval = setInterval(loadUserMachines, 60000)
     return () => clearInterval(interval)
   }, [user])
@@ -167,7 +177,6 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
     try {
       console.log('🔄 Claiming earnings for machine:', machineId)
       
-      // FIXED: Changed to correct API path
       const response = await fetch('/api/machines/claim-earnings', {
         method: 'POST',
         headers: {
@@ -188,7 +197,6 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
 
       toast.success(`💰 ${result.message}`)
       
-      // Refresh everything
       await Promise.all([
         refreshUser(),
         loadUserMachines()
@@ -204,38 +212,43 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
     }
   }
 
+  // ✅ FIX: Live canClaim check using currentTime state
   const canClaimEarnings = (machine: UserMachine) => {
     if (!machine.last_claim_time || !machine.is_active) return false
     
     const lastClaim = new Date(machine.last_claim_time)
-    const now = new Date()
-    const hoursSinceClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60)
+    const hoursSinceClaim = (currentTime.getTime() - lastClaim.getTime()) / (1000 * 60 * 60)
     
     return hoursSinceClaim >= 24
   }
 
+  // ✅ FIX: Live mining progress using currentTime state
   const getMiningProgress = (machine: UserMachine) => {
     if (!machine.last_claim_time || !machine.is_active) return 0
     
     const lastClaim = new Date(machine.last_claim_time)
-    const now = new Date()
-    const hoursSinceClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60)
+    const hoursSinceClaim = (currentTime.getTime() - lastClaim.getTime()) / (1000 * 60 * 60)
     
     return Math.min((hoursSinceClaim / 24) * 100, 100)
   }
 
+  // ✅ FIX: Live time remaining that updates every second
   const getTimeRemaining = (machine: UserMachine) => {
     if (!machine.last_claim_time || !machine.is_active) return '24h 0m'
     
     const lastClaim = new Date(machine.last_claim_time)
-    const now = new Date()
-    const hoursSinceClaim = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60)
+    const hoursSinceClaim = (currentTime.getTime() - lastClaim.getTime()) / (1000 * 60 * 60)
     const hoursRemaining = Math.max(0, 24 - hoursSinceClaim)
     
     const hours = Math.floor(hoursRemaining)
     const minutes = Math.floor((hoursRemaining % 1) * 60)
+    const seconds = Math.floor((hoursRemaining * 3600) % 60)
     
-    return `${hours}h ${minutes}m`
+    if (hoursRemaining <= 0) {
+      return 'Ready to Claim!'
+    }
+    
+    return `${hours}h ${minutes}m ${seconds}s`
   }
 
   const isNewMachine = (machine: UserMachine) => {
@@ -288,6 +301,15 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
             <Zap className="h-6 w-6 text-emerald-300" />
             <span className="text-xl text-white">My CashRise Machines</span>
           </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadUserMachines}
+            className="border-slate-600 text-slate-300"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
         </div>
         <p className="text-slate-300 text-sm">
           Manage your AI-powered gaming machines and track their performance
@@ -348,17 +370,15 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                             <Zap className="h-3 w-3 mr-1" />
                             New Machine
                           </Badge>
+                        ) : canClaim ? (
+                          <Badge variant="default" className="bg-emerald-500/10 text-emerald-300 border-emerald-500/20 px-3 py-1 animate-pulse">
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            Ready to Claim!
+                          </Badge>
                         ) : (
                           <Badge variant="default" className="bg-amber-500/10 text-amber-200 border-amber-500/20 px-3 py-1">
                             <Clock className="h-3 w-3 mr-1" />
                             Ready to Start
-                          </Badge>
-                        )}
-                        
-                        {canClaim && (
-                          <Badge variant="default" className="bg-emerald-500/10 text-emerald-300 border-emerald-500/20 px-3 py-1 animate-pulse">
-                            <TrendingUp className="h-3 w-3 mr-1" />
-                            Ready to Claim!
                           </Badge>
                         )}
                       </div>
@@ -378,13 +398,13 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                         </div>
                       )}
                       
-                      {/* Mining Progress Overlay */}
+                      {/* ✅ FIX: Live Mining Progress Overlay */}
                       {isMining && (
                         <div className="absolute bottom-0 left-0 right-0 bg-slate-950/70 backdrop-blur-sm p-3">
                           <div className="flex items-center justify-between text-sm text-white mb-2">
                             <div className="flex items-center space-x-2">
-                              <Timer className="h-4 w-4" />
-                              <span>{timeRemaining} remaining</span>
+                              <Timer className="h-4 w-4 animate-pulse" />
+                              <span className="font-mono">{timeRemaining}</span>
                             </div>
                             <span className="text-emerald-300 font-bold">{Math.round(progress)}%</span>
                           </div>
@@ -393,6 +413,15 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                               className="bg-gradient-to-r from-emerald-400 to-cyan-400 h-2 rounded-full transition-all duration-300"
                               style={{ width: `${progress}%` }}
                             ></div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* ✅ FIX: Ready to Claim Overlay */}
+                      {canClaim && (
+                        <div className="absolute inset-0 bg-emerald-500/20 backdrop-blur-sm flex items-center justify-center">
+                          <div className="bg-emerald-500/30 rounded-full p-4 animate-pulse">
+                            <CheckCircle className="h-12 w-12 text-emerald-300" />
                           </div>
                         </div>
                       )}
@@ -461,7 +490,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                           disabled
                           className="w-full bg-gradient-to-r from-cyan-500 to-emerald-500 font-bold text-lg py-6 shadow-lg cursor-not-allowed text-slate-950"
                         >
-                          <Timer className="h-5 w-5 mr-2" />
+                          <Timer className="h-5 w-5 mr-2 animate-pulse" />
                           Mining... {timeRemaining}
                         </Button>
                       ) : (
@@ -489,39 +518,6 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                 </Card>
               )
             })}
-
-            {/* Fleet Summary */}
-            <Card className="cr-glass border border-cyan-400/20">
-              <CardContent className="p-6">
-                <div className="text-center">
-                  <h4 className="font-bold text-white text-xl mb-4">Fleet Performance Summary</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div>
-                      <div className="text-slate-400 text-sm">Total Machines</div>
-                      <div className="text-cyan-300 font-bold text-2xl">{userMachines.length}</div>
-                    </div>
-                    <div>
-                      <div className="text-slate-400 text-sm">Active Machines</div>
-                      <div className="text-emerald-300 font-bold text-2xl">
-                        {userMachines.filter(m => m.is_active).length}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-slate-400 text-sm">Ready to Claim</div>
-                      <div className="text-amber-300 font-bold text-2xl">
-                        {userMachines.filter(m => canClaimEarnings(m)).length}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-slate-400 text-sm">Total Earned</div>
-                      <div className="text-emerald-300 font-bold text-2xl">
-                        {userMachines.reduce((sum, m) => sum + (m.total_earned || 0), 0).toLocaleString()} XAF
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         )}
       </CardContent>
