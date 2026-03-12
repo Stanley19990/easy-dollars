@@ -77,18 +77,18 @@ export async function POST(request: NextRequest) {
 
     console.log('🔄 Payment Status Updated:', { transId, status: normalizedStatus })
 
-    // ✅ FIX: Activate machine and process referral bonus if payment is successful
+    // ✅ Activate machine and process referral bonus if payment is successful
     if (isSuccess) {
       const { data: transaction, error: txError } = await supabase
         .from('transactions')
-        .select('user_id, external_id')
+        .select('user_id, external_id, metadata')
         .eq('fapshi_trans_id', transId)
         .single()
 
       if (txError || !transaction) {
         console.error('❌ Unable to load transaction for activation:', txError)
       } else {
-        await activateUserMachine(transaction.user_id, transaction.external_id)
+        await activateUserMachine(transaction)
       }
     }
 
@@ -100,31 +100,57 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function activateUserMachine(userId: string, externalId: string) {
+// ✅ Activate machine using transaction metadata
+async function activateUserMachine(transaction: any) {
   try {
-    // Extract machine ID from externalId
-    const parts = externalId.split('_')
-    if (parts.length < 3) {
-      console.error('❌ Invalid externalId format:', externalId)
+    const { user_id, external_id, metadata } = transaction
+    
+    console.log('🔧 Activating machine for user:', user_id, 'metadata:', metadata)
+
+    // Get machine ID from metadata
+    const machineId = metadata?.machineId || metadata?.machine_type_id
+    
+    if (!machineId) {
+      console.error('❌ No machine ID found in transaction metadata:', metadata)
+      
+      // Fallback: Try to extract from external_id if it contains machine ID
+      const parts = external_id?.split('_') || []
+      if (parts.length >= 2) {
+        const possibleMachineId = parts[parts.length - 1]
+        if (!isNaN(parseInt(possibleMachineId))) {
+          console.log('⚠️ Using fallback machine ID extraction:', possibleMachineId)
+          await processActivation(user_id, possibleMachineId, external_id)
+          return
+        }
+      }
       return
     }
-    
-    const machineId = parts[1]
 
-    console.log('🔧 Activating machine:', { userId, machineId })
+    await processActivation(user_id, machineId, external_id)
 
-    // ✅ FIX: Check if machine already activated (prevent duplicates)
+  } catch (error) {
+    console.error('❌ Activation error:', error)
+  }
+}
+
+// ✅ Process activation
+async function processActivation(userId: string, machineId: string, externalId: string) {
+  try {
+    console.log('✅ Processing activation:', { userId, machineId })
+
+    // Check if machine already activated
     const { data: existingMachine } = await supabase
       .from('user_machines')
       .select('id')
       .eq('user_id', userId)
       .eq('machine_type_id', parseInt(machineId))
-      .single()
+      .maybeSingle()
 
     if (existingMachine) {
-      console.log('⚠️ Machine already activated, skipping activation but checking referral')
-      // Still process referral in case it was missed
-      await processReferralBonus(userId, machineId)
+      console.log('⚠️ Machine already activated for user:', userId)
+      
+      // Still check referral in case it was missed
+      await checkReferralBonus(userId, machineId)
       return
     }
 
@@ -147,67 +173,74 @@ async function activateUserMachine(userId: string, externalId: string) {
       return
     }
 
-    console.log('✅ Machine activated:', userMachine.id)
+    console.log('✅ Machine activated successfully:', userMachine.id)
 
     // Update user's machines_owned count
-    const { error: updateUserError } = await supabase.rpc('increment_machines_owned', {
-      user_id_param: userId
-    })
+    const { error: countError } = await supabase
+      .from('users')
+      .update({ 
+        machines_owned: supabase.rpc('increment', { amount: 1 }) 
+      })
+      .eq('id', userId)
 
-    if (updateUserError) {
-      console.warn('⚠️ Could not update machines_owned count:', updateUserError)
+    if (countError) {
+      // Fallback: Count and update
+      const { count } = await supabase
+        .from('user_machines')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+      
+      await supabase
+        .from('users')
+        .update({ machines_owned: count || 0 })
+        .eq('id', userId)
     }
 
-    // ✅ FIX: Process referral bonus AFTER successful payment
-    await processReferralBonus(userId, machineId)
+    // Check referral bonus for this purchase
+    await checkReferralBonus(userId, machineId)
 
   } catch (error) {
-    console.error('❌ Activation error:', error)
+    console.error('❌ Process activation error:', error)
   }
 }
 
-// ✅ FIXED: Referral bonus processing with correct logic
-async function processReferralBonus(userId: string, machineId: string) {
+// ✅ UPDATED: Bonus for EVERY machine purchase (unlimited)
+async function checkReferralBonus(userId: string, machineId: string) {
   try {
     console.log('🎯 Checking for referral bonus for user:', userId)
 
-    // ✅ FIX: Check if user was referred by someone (with correct status check)
+    // Check if user was referred by someone
     const { data: referral, error: referralError } = await supabase
       .from('referrals')
       .select('*')
       .eq('referred_id', userId)
-      .eq('status', 'pending')
-      .single()
+      .eq('status', 'active')
+      .maybeSingle()
 
     if (referralError || !referral) {
-      console.log('ℹ️ No pending referral found for user:', userId)
+      console.log('ℹ️ No active referral found for user:', userId)
       return
     }
 
-    console.log('✅ Found pending referral:', referral.id)
-
-    // ✅ FIX: Check if this is user's FIRST machine purchase
-    const { data: userMachines, error: machinesError } = await supabase
-      .from('user_machines')
-      .select('id')
-      .eq('user_id', userId)
-
-    if (machinesError) {
-      console.error('❌ Error checking user machines:', machinesError)
-      return
-    }
-
-    const machineCount = userMachines?.length || 0
-    console.log(`📊 User has ${machineCount} machine(s)`)
-
-    // ✅ FIX: Only credit bonus for FIRST machine purchase (exactly 1 machine)
-    if (machineCount !== 1) {
-      console.log(`⚠️ User has ${machineCount} machines, not their first purchase. No bonus credited.`)
-      return
-    }
+    console.log('✅ Found active referral:', referral.id)
 
     const referrerId = referral.referrer_id
-    const bonusAmount = 1000 // 1000 XAF bonus
+    const bonusAmount = 1000 // 1000 XAF per machine
+
+    // Check if referrer ALREADY got bonus for THIS SPECIFIC machine
+    const { data: existingBonus } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('user_id', referrerId)
+      .eq('type', 'referral_bonus')
+      .eq('metadata->>machine_id', machineId)
+      .eq('metadata->>referred_user_id', userId)
+      .maybeSingle()
+
+    if (existingBonus) {
+      console.log('⚠️ Referrer already got bonus for this machine purchase')
+      return
+    }
 
     console.log('💰 Crediting 1000 XAF referral bonus to:', referrerId)
 
@@ -237,34 +270,17 @@ async function processReferralBonus(userId: string, machineId: string) {
 
     console.log('✅ Referrer balance updated:', { referrerId, newBalance })
 
-    // ✅ FIX: Update referral status to completed with timestamp
-    const { error: updateReferralError } = await supabase
-      .from('referrals')
-      .update({ 
-        status: 'completed',
-        bonus: bonusAmount,
-        completed_at: new Date().toISOString()
-      })
-      .eq('id', referral.id)
-
-    if (updateReferralError) {
-      console.error('❌ Error updating referral:', updateReferralError)
-      return
-    }
-
-    console.log('✅ Referral status updated to completed')
-
     // Record bonus transaction for referrer
     const { error: transactionError } = await supabase
       .from('transactions')
       .insert({
         user_id: referrerId,
         type: 'referral_bonus',
-        description: `Referral bonus from user ${userId}`,
+        description: `🎉 Referral bonus - user purchased a machine!`,
         amount: bonusAmount,
         currency: 'XAF',
         status: 'completed',
-        external_id: `ref_bonus_${referral.id}_${Date.now()}`,
+        external_id: `ref_bonus_${referral.id}_${machineId}_${Date.now()}`,
         metadata: {
           referred_user_id: userId,
           machine_id: machineId,
@@ -274,41 +290,33 @@ async function processReferralBonus(userId: string, machineId: string) {
 
     if (transactionError) {
       console.error('❌ Error recording referral transaction:', transactionError)
-    } else {
-      console.log('✅ Referral transaction recorded')
     }
 
-    // Create notification for referrer
+    // Create notification for referrer - FIXED: No .catch()
     const { error: notificationError } = await supabase
       .from('notifications')
       .insert({
         user_id: referrerId,
         title: '🎉 Referral Bonus Earned!',
-        message: `You earned 1,000 XAF because your referral purchased their first machine!`,
+        message: `You earned 1,000 XAF because your referral purchased another machine!`,
         type: 'referral',
         related_id: referral.id.toString(),
         metadata: {
           bonus_amount: bonusAmount,
-          referred_user_id: userId
+          referred_user_id: userId,
+          machine_id: machineId
         }
       })
 
     if (notificationError) {
       console.warn('⚠️ Could not create notification:', notificationError)
+    } else {
+      console.log('✅ Notification created')
     }
 
     console.log('✅ Referral bonus credited successfully to:', referrerId)
 
   } catch (error) {
-    console.error('❌ Referral bonus processing error:', error)
+    console.error('❌ Referral bonus error:', error)
   }
-}
-
-// GET method for webhook verification
-export async function GET() {
-  return NextResponse.json({
-    success: true,
-    message: 'Webhook endpoint is active',
-    timestamp: new Date().toISOString()
-  })
 }

@@ -10,20 +10,26 @@ export async function POST(request: NextRequest) {
   try {
     const { userId, machineId, machineName, amount, externalId, transId, type } = await request.json()
 
-    console.log('💾 Saving transaction:', { externalId, transId, amount })
+    console.log('💾 Saving transaction:', { externalId, transId, amount, machineId })
 
-    // Save transaction to database
+    // Save transaction to database with metadata
     const { data, error } = await supabase
       .from('transactions')
       .insert({
         user_id: userId,
         type: type || 'machine_purchase',
-        description: `Purchase ${machineName} - ${externalId}`,
+        description: `Purchase ${machineName}`,
         amount: -amount, // Negative for purchases
         currency: 'XAF',
         status: 'pending',
         external_id: externalId,
-        fapshi_trans_id: transId
+        fapshi_trans_id: transId,
+        metadata: {
+          machineId: machineId,           // ✅ CRITICAL: Save machine ID here
+          machineName: machineName,
+          machinePrice: amount,
+          purchasedAt: new Date().toISOString()
+        }
       })
       .select()
       .single()
@@ -33,7 +39,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
-    console.log('✅ Transaction saved:', data.id)
+    console.log('✅ Transaction saved with metadata:', data.id)
     return NextResponse.json({ success: true, data })
 
   } catch (error: any) {

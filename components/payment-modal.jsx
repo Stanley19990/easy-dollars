@@ -77,7 +77,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
         },
         body: JSON.stringify({
           amount: finalPrice,
-          machineId: machine.id,
+          machineId: machine.id,           // ✅ CRITICAL: Include machine ID
           userId: user.id,
           machineName: machine.name,
           phone: formattedPhone,
@@ -101,6 +101,21 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           throw new Error(data.error || 'Payment failed. Please try again.')
         }
       }
+
+      // ✅ FIX: Save transaction with metadata
+      await fetch('/api/transactions/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          machineId: machine.id,
+          machineName: machine.name,
+          amount: finalPrice,
+          externalId: data.externalId,
+          transId: data.transId,
+          type: 'machine_purchase'
+        })
+      })
 
       if (onPaymentSuccess) {
         onPaymentSuccess(data.transId, data.externalId)

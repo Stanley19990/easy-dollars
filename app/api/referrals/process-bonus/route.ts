@@ -1,4 +1,4 @@
-// app/api/referrals/process-bonus/route.ts - NEW FILE
+// app/api/referrals/process-bonus/route.ts - UPDATED FOR UNLIMITED BONUSES
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -50,40 +50,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Referrer not found' }, { status: 404 })
     }
 
-    // Check if this is the user's FIRST machine purchase
+    // ✅ NEW: Get the latest machine purchase
+    const { data: latestMachine, error: machineError } = await supabase
+      .from('user_machines')
+      .select('machine_type_id, purchased_at')
+      .eq('user_id', userId)
+      .order('purchased_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (machineError || !latestMachine) {
+      console.error('❌ Failed to get latest machine:', machineError)
+      return NextResponse.json({ success: false, error: 'Machine not found' }, { status: 404 })
+    }
+
+    const machineId = latestMachine.machine_type_id
+
+    // ✅ NEW: Check if bonus was already given for THIS SPECIFIC machine
+    const { data: existingBonus } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('user_id', referrerData.id)
+      .eq('type', 'referral_bonus')
+      .eq('metadata->>machine_id', machineId.toString())
+      .eq('metadata->>referred_user_id', userId)
+      .maybeSingle()
+
+    if (existingBonus) {
+      console.log('ℹ️ Bonus already given for this machine purchase')
+      return NextResponse.json({
+        success: true,
+        message: 'Bonus already given for this machine'
+      })
+    }
+
+    // ✅ NEW: Get count of how many machines user has (for messaging)
     const { count: machineCount } = await supabase
       .from('user_machines')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
 
-    if (machineCount !== 1) {
-      console.log(`ℹ️ User has ${machineCount} machines - bonus only for first purchase`)
-      return NextResponse.json({
-        success: true,
-        message: 'Bonus only applies to first machine purchase'
-      })
-    }
-
-    // Check if referral bonus already paid
-    const { data: existingReferral, error: referralCheckError } = await supabase
-      .from('referrals')
-      .select('bonus, status')
-      .eq('referrer_id', referrerData.id)
-      .eq('referred_id', userId)
-      .single()
-
-    if (existingReferral && existingReferral.bonus > 0) {
-      console.log('ℹ️ Referral bonus already paid')
-      return NextResponse.json({
-        success: true,
-        message: 'Bonus already paid'
-      })
-    }
-
     console.log('💰 Crediting referral bonus:', {
       referrer: referrerData.username,
       referrerId: referrerData.id,
-      amount: REFERRAL_BONUS_XAF
+      amount: REFERRAL_BONUS_XAF,
+      machineNumber: machineCount,
+      machineId: machineId
     })
 
     // Credit referrer's wallet
@@ -105,19 +117,37 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Referrer balance updated')
 
-    // Update referral record with bonus
-    const { error: referralUpdateError } = await supabase
+    // ✅ NEW: Update or create referral record
+    const { data: existingReferral } = await supabase
       .from('referrals')
-      .update({
-        bonus: REFERRAL_BONUS_XAF,
-        status: 'completed',
-        completed_at: new Date().toISOString()
-      })
+      .select('id')
       .eq('referrer_id', referrerData.id)
       .eq('referred_id', userId)
+      .maybeSingle()
 
-    if (referralUpdateError) {
-      console.error('❌ Failed to update referral record:', referralUpdateError)
+    if (existingReferral) {
+      // Update existing referral record
+      await supabase
+        .from('referrals')
+        .update({
+          bonus: REFERRAL_BONUS_XAF,
+          status: 'active',  // Keep active for future bonuses
+          completed_at: new Date().toISOString()
+        })
+        .eq('referrer_id', referrerData.id)
+        .eq('referred_id', userId)
+    } else {
+      // Create new referral record
+      await supabase
+        .from('referrals')
+        .insert({
+          referrer_id: referrerData.id,
+          referred_id: userId,
+          bonus: REFERRAL_BONUS_XAF,
+          status: 'active',
+          completed_at: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        })
     }
 
     // Create transaction record for referrer
@@ -126,14 +156,16 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: referrerData.id,
         type: 'referral_bonus',
-        description: `Referral bonus from ${userData.username || userData.email || 'new user'}`,
+        description: `🎉 Referral bonus - User purchased machine #${machineCount}!`,
         amount: REFERRAL_BONUS_XAF,
         currency: 'XAF',
         status: 'completed',
-        external_id: `referral_${userId}_${Date.now()}`,
+        external_id: `referral_${userId}_${machineId}_${Date.now()}`,
         metadata: {
           referred_user_id: userId,
           referred_username: userData.username,
+          machine_id: machineId,
+          machine_number: machineCount,
           bonus_amount: REFERRAL_BONUS_XAF
         }
       })
@@ -147,19 +179,24 @@ export async function POST(request: NextRequest) {
       .from('notifications')
       .insert({
         user_id: referrerData.id,
-        title: 'Referral Bonus Earned! 🎉',
-        message: `You earned ${REFERRAL_BONUS_XAF.toLocaleString()} XAF because ${userData.username || 'your referral'} purchased their first machine!`,
+        title: '🎉 Referral Bonus Earned!',
+        message: `You earned ${REFERRAL_BONUS_XAF.toLocaleString()} XAF because ${userData.username || 'your referral'} purchased machine #${machineCount}!`,
         type: 'referral',
-        related_id: userId
+        related_id: userId,
+        metadata: {
+          machine_number: machineCount,
+          machine_id: machineId
+        }
       })
 
-    console.log('✅ Referral bonus processed successfully')
+    console.log('✅ Referral bonus processed successfully for machine #', machineCount)
 
     return NextResponse.json({
       success: true,
-      message: 'Referral bonus credited',
+      message: `Referral bonus credited for machine #${machineCount}`,
       bonusAmount: REFERRAL_BONUS_XAF,
-      referrerId: referrerData.id
+      referrerId: referrerData.id,
+      machineNumber: machineCount
     })
 
   } catch (error: any) {
@@ -174,7 +211,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     success: true,
-    message: 'Referral bonus API is active',
+    message: 'Referral bonus API is active - Now gives bonuses for EVERY machine purchase!',
     timestamp: new Date().toISOString()
   })
 }
