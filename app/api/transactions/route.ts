@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
         external_id: externalId,
         fapshi_trans_id: transId,
         metadata: {
-          machineId: machineId,           // ✅ CRITICAL: Save machine ID here
+          machineId: machineId,
+          machine_id: machineId,
           machineName: machineName,
           machinePrice: amount,
           purchasedAt: new Date().toISOString()

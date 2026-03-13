@@ -36,7 +36,13 @@ export async function POST(request: NextRequest) {
 
     // Process each transaction
     for (const transaction of transactions || []) {
-      const machineId = transaction.metadata?.machineId
+      const machineId =
+        transaction.metadata?.machineId ||
+        transaction.metadata?.machine_id ||
+        transaction.metadata?.machine_type_id ||
+        (typeof transaction.external_id === 'string'
+          ? transaction.external_id.split('_')[1]
+          : null)
       
       if (!machineId) {
         console.log('⚠️ No machineId in transaction metadata:', transaction.id)

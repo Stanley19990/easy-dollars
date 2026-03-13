@@ -108,7 +108,7 @@ async function activateUserMachine(transaction: any) {
     console.log('🔧 Activating machine for user:', user_id, 'metadata:', metadata)
 
     // Get machine ID from metadata
-    const machineId = metadata?.machineId || metadata?.machine_type_id
+    const machineId = metadata?.machineId || metadata?.machine_id || metadata?.machine_type_id
     
     if (!machineId) {
       console.error('❌ No machine ID found in transaction metadata:', metadata)
@@ -116,7 +116,7 @@ async function activateUserMachine(transaction: any) {
       // Fallback: Try to extract from external_id if it contains machine ID
       const parts = external_id?.split('_') || []
       if (parts.length >= 2) {
-        const possibleMachineId = parts[parts.length - 1]
+        const possibleMachineId = parts[1]
         if (!isNaN(parseInt(possibleMachineId))) {
           console.log('⚠️ Using fallback machine ID extraction:', possibleMachineId)
           await processActivation(user_id, possibleMachineId, external_id)
@@ -214,7 +214,7 @@ async function checkReferralBonus(userId: string, machineId: string) {
       .from('referrals')
       .select('*')
       .eq('referred_id', userId)
-      .eq('status', 'active')
+      .in('status', ['pending', 'active'])
       .maybeSingle()
 
     if (referralError || !referral) {
