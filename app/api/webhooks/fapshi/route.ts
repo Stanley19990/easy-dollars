@@ -81,9 +81,11 @@ export async function POST(request: NextRequest) {
     if (isSuccess) {
       const { data: transaction, error: txError } = await supabase
         .from('transactions')
-        .select('user_id, external_id, metadata')
+        .select('user_id, external_id, metadata, created_at')
         .eq('fapshi_trans_id', transId)
-        .single()
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
       if (txError || !transaction) {
         console.error('❌ Unable to load transaction for activation:', txError)

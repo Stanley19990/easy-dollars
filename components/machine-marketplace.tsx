@@ -230,6 +230,13 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         setActivePaymentTransId(null)
         setPurchasing(null)
         toast.error("❌ Payment failed. Please try again.")
+      } else if (transaction.status === 'pending') {
+        // Trigger reconciliation to re-check provider status
+        fetch('/api/payments/reconcile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transId })
+        }).catch(() => null)
       }
       // If still pending, continue polling
     } catch (error) {

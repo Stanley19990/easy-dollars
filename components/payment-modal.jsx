@@ -102,21 +102,6 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
         }
       }
 
-      // ✅ FIX: Save transaction with metadata
-      await fetch('/api/transactions/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          machineId: machine.id,
-          machineName: machine.name,
-          amount: finalPrice,
-          externalId: data.externalId,
-          transId: data.transId,
-          type: 'machine_purchase'
-        })
-      })
-
       if (onPaymentSuccess) {
         onPaymentSuccess(data.transId, data.externalId)
       }
