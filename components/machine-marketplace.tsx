@@ -42,6 +42,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   const [activePaymentTransId, setActivePaymentTransId] = useState<string | null>(null)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
   const repairRanRef = useRef(false)
+  const pendingStorageKey = user ? `pending_payment_${user.id}` : null
 
   // Fetch machines from database
   const fetchMachinesFromDatabase = async () => {
@@ -92,6 +93,17 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     fetchMachinesFromDatabase()
     if (user) {
       fetchUserMachines()
+      try {
+        const stored = pendingStorageKey ? localStorage.getItem(pendingStorageKey) : null
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (parsed?.transId) {
+            setActivePaymentTransId(parsed.transId)
+          }
+        }
+      } catch {
+        // ignore storage errors
+      }
       if (!repairRanRef.current) {
         repairRanRef.current = true
         fetch("/api/machines/repair", {
@@ -104,6 +116,21 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
       }
     }
   }, [user])
+
+  useEffect(() => {
+    if (!user || !activePaymentTransId) return
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetch('/api/payments/reconcile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transId: activePaymentTransId })
+        }).catch(() => null)
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility)
+    return () => document.removeEventListener("visibilitychange", handleVisibility)
+  }, [user, activePaymentTransId])
 
   useEffect(() => {
     if (!user) return
@@ -145,13 +172,14 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
 
     setPollingInterval(interval)
 
-    // Stop polling after 2 minutes
+    // Stop polling after 10 minutes to allow user to confirm payment
     const timeout = setTimeout(() => {
       if (interval) clearInterval(interval)
       setActivePaymentTransId(null)
       setPurchasing(null)
-      toast.info("Payment verification timed out. Please check your machines or refresh the page.")
-    }, 2 * 60 * 1000)
+      if (pendingStorageKey) localStorage.removeItem(pendingStorageKey)
+      toast.info("Payment verification timed out. We'll keep checking when you return.")
+    }, 10 * 60 * 1000)
 
     return () => {
       clearInterval(interval)
@@ -185,6 +213,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         }
         setActivePaymentTransId(null)
         setPurchasing(null)
+        if (pendingStorageKey) localStorage.removeItem(pendingStorageKey)
 
         // ✅ NEW: Process referral bonus immediately after successful payment
         try {
@@ -229,6 +258,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         }
         setActivePaymentTransId(null)
         setPurchasing(null)
+        if (pendingStorageKey) localStorage.removeItem(pendingStorageKey)
         toast.error("❌ Payment failed. Please try again.")
       } else if (transaction.status === 'pending') {
         // Trigger reconciliation to re-check provider status
@@ -317,6 +347,12 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     // Start polling for payment status
     setActivePaymentTransId(transId)
     setPurchasing(selectedMachine?.id || null)
+    if (pendingStorageKey) {
+      localStorage.setItem(
+        pendingStorageKey,
+        JSON.stringify({ transId, externalId, createdAt: Date.now() })
+      )
+    }
   }
 
   const getMachineIcon = (index: number) => {
