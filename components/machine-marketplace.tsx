@@ -189,21 +189,38 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
 
   // ✅ UPDATED: Check payment status via transaction lookup with referral bonus trigger
   const checkPaymentStatus = async (transId: string) => {
+    if (!user) return
+
     try {
       const { data: transaction, error } = await supabase
         .from('transactions')
         .select('status, metadata, user_id')
         .eq('fapshi_trans_id', transId)
-        .single()
+        .maybeSingle()
 
       if (error) {
         console.error('Error checking payment status:', error)
-        return
       }
 
-      console.log('📊 Payment status:', transaction.status)
+      let paymentStatus = transaction?.status
+      let paymentUserId = transaction?.user_id || user.id
 
-      if (transaction.status === 'successful') {
+      if (!paymentStatus || paymentStatus === 'pending' || paymentStatus === 'created') {
+        const reconcileResponse = await fetch('/api/payments/reconcile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transId })
+        }).catch(() => null)
+
+        if (reconcileResponse?.ok) {
+          const reconcileResult = await reconcileResponse.json()
+          paymentStatus = reconcileResult.status || paymentStatus
+        }
+      }
+
+      console.log('📊 Payment status:', paymentStatus)
+
+      if (paymentStatus === 'successful') {
         // Payment successful - stop polling and refresh
         console.log('✅ Payment confirmed successful!')
         
@@ -215,30 +232,11 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         setPurchasing(null)
         if (pendingStorageKey) localStorage.removeItem(pendingStorageKey)
 
-        // ✅ NEW: Process referral bonus immediately after successful payment
-        try {
-          console.log('🎁 Triggering referral bonus check for user:', transaction.user_id)
-          const bonusResponse = await fetch('/api/referrals/process-bonus', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: transaction.user_id })
-          })
-          
-          const bonusResult = await bonusResponse.json()
-          console.log('🎁 Referral bonus result:', bonusResult)
-          
-          if (bonusResult.success && bonusResult.bonusAmount) {
-            toast.success(`🎉 Your referrer earned ${bonusResult.bonusAmount.toLocaleString()} XAF!`)
-          }
-        } catch (bonusError) {
-          console.error('⚠️ Referral bonus error (non-critical):', bonusError)
-        }
-
         // Ensure machine is present even if webhook is delayed
         await fetch("/api/machines/repair", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: transaction.user_id })
+          body: JSON.stringify({ userId: paymentUserId })
         }).catch(() => null)
 
         // Refresh user machines
@@ -250,7 +248,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         if (onPurchaseSuccess) {
           onPurchaseSuccess()
         }
-      } else if (transaction.status === 'failed' || transaction.status === 'cancelled') {
+      } else if (paymentStatus === 'failed' || paymentStatus === 'cancelled' || paymentStatus === 'expired') {
         // Payment failed
         if (pollingInterval) {
           clearInterval(pollingInterval)
@@ -260,13 +258,6 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         setPurchasing(null)
         if (pendingStorageKey) localStorage.removeItem(pendingStorageKey)
         toast.error("❌ Payment failed. Please try again.")
-      } else if (transaction.status === 'pending') {
-        // Trigger reconciliation to re-check provider status
-        fetch('/api/payments/reconcile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transId })
-        }).catch(() => null)
       }
       // If still pending, continue polling
     } catch (error) {
@@ -338,21 +329,23 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   // ✅ FIX: Handle payment success with polling
   const handlePaymentSuccess = async (transId: string, externalId: string) => {
     console.log('💳 Payment initiated:', { transId, externalId })
-    toast.success("Payment request sent! Please complete on your phone.")
-    toast.info("📱 We'll automatically update when payment is confirmed")
     
     setPaymentModalOpen(false)
     setSelectedMachine(null)
+
+    if (pendingStorageKey) {
+      localStorage.setItem(
+        pendingStorageKey,
+        JSON.stringify({ transId, externalId, mode: "direct-pay", createdAt: Date.now() })
+      )
+    }
+
+    toast.success("Payment request sent! Please complete on your phone.")
+    toast.info("📱 We'll automatically update when payment is confirmed")
     
     // Start polling for payment status
     setActivePaymentTransId(transId)
     setPurchasing(selectedMachine?.id || null)
-    if (pendingStorageKey) {
-      localStorage.setItem(
-        pendingStorageKey,
-        JSON.stringify({ transId, externalId, createdAt: Date.now() })
-      )
-    }
   }
 
   const getMachineIcon = (index: number) => {

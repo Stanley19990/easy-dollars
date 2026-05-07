@@ -119,6 +119,40 @@ export async function POST(request: NextRequest) {
       new: newWalletBalance
     })
 
+    // Claim the machine cycle first using the exact previous timestamp.
+    // This prevents double-crediting when users click twice or a request retries.
+    const newMachineTotalEarned = (userMachine.total_earned || 0) + earnedAmountXAF
+    let machineUpdateQuery = supabase
+      .from('user_machines')
+      .update({
+        last_claim_time: new Date().toISOString(),
+        total_earned: newMachineTotalEarned,
+        is_active: true // Keep active for next cycle
+      })
+      .eq('id', userMachineId)
+      .eq('user_id', userId)
+
+    if (userMachine.last_claim_time) {
+      machineUpdateQuery = machineUpdateQuery.eq('last_claim_time', userMachine.last_claim_time)
+    }
+
+    const { data: updatedMachine, error: machineUpdateError } = await machineUpdateQuery
+      .select('id')
+      .maybeSingle()
+
+    if (machineUpdateError || !updatedMachine) {
+      console.error('❌ Machine update error:', machineUpdateError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'This claim was already processed. Please refresh your machines.'
+        },
+        { status: 409 }
+      )
+    }
+
+    console.log('✅ Machine claim window locked')
+
     // Update user wallet_balance and total_earned
     const { error: balanceError } = await supabase
       .from('users')
@@ -130,28 +164,17 @@ export async function POST(request: NextRequest) {
 
     if (balanceError) {
       console.error('❌ Balance update error:', balanceError)
+      await supabase
+        .from('user_machines')
+        .update({
+          last_claim_time: userMachine.last_claim_time,
+          total_earned: userMachine.total_earned || 0
+        })
+        .eq('id', userMachineId)
       throw balanceError
     }
 
     console.log('✅ User balance updated')
-
-    // Update machine last_claim_time and total_earned
-    const newMachineTotalEarned = (userMachine.total_earned || 0) + earnedAmountXAF
-    const { error: machineUpdateError } = await supabase
-      .from('user_machines')
-      .update({
-        last_claim_time: new Date().toISOString(),
-        total_earned: newMachineTotalEarned,
-        is_active: true // Keep active for next cycle
-      })
-      .eq('id', userMachineId)
-
-    if (machineUpdateError) {
-      console.error('❌ Machine update error:', machineUpdateError)
-      throw machineUpdateError
-    }
-
-    console.log('✅ Machine updated')
 
     // Record earnings in earnings table
     const { error: earningsError } = await supabase

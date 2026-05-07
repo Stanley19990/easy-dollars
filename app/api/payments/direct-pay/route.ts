@@ -6,6 +6,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+const FAPSHI_BASE_URL = process.env.FAPSHI_BASE_URL || process.env.FAPSHI_ENVIRONMENT || 'https://live.fapshi.com'
+
 // Helper function to get discounted price
 const getDiscountedPrice = (price: number) => {
   const discountMachines = [50000, 100000, 150000]
@@ -23,9 +25,7 @@ export async function POST(request: NextRequest) {
       userId, 
       machineName, 
       phone,
-      medium,
-      userEmail,
-      userName
+      medium
     } = await request.json()
     
     console.log('💰 Payment request received:', { 
@@ -103,22 +103,26 @@ export async function POST(request: NextRequest) {
     // Generate unique external ID
     const externalId = `MACHINE_${machineId}_${userId}_${Date.now()}`
 
-    // Prepare Fapshi payload
+    // Prepare Fapshi Direct Pay payload.
+    // Keep this minimal so Fapshi does not send app-branded email/message content.
     const fapshiPayload = {
       amount: correctPrice, // Use validated discounted price
       phone: cleanPhone.slice(-9), // Always send last 9 digits
-      medium: medium || "mobile money",
-      name: userName || "Customer",
-      email: userEmail || "customer@easydollars.com",
+      ...(medium ? { medium } : {}),
       userId: userId,
-      externalId: externalId,
-      message: `Purchase ${machineName} - CashRise`
+      externalId: externalId
     }
 
-    console.log('📤 Calling Fapshi API...')
+    console.log('📤 Calling Fapshi API...', {
+      endpoint: 'direct-pay',
+      amount: fapshiPayload.amount,
+      phone: `***${fapshiPayload.phone.slice(-3)}`,
+      medium: 'medium' in fapshiPayload ? fapshiPayload.medium : 'auto-detect',
+      externalId
+    })
 
     // Call Fapshi API
-    const response = await fetch('https://live.fapshi.com/direct-pay', {
+    const response = await fetch(`${FAPSHI_BASE_URL}/direct-pay`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -128,7 +132,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(fapshiPayload)
     })
 
-    const responseData = await response.json()
+    const responseData = await response.json().catch(() => ({}))
     console.log('📨 Fapshi response:', responseData)
 
     if (!response.ok) {
@@ -185,7 +189,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Payment request sent to your phone!',
       transId: responseData.transId,
-      externalId: externalId
+      externalId: externalId,
+      mode: 'direct-pay'
     })
 
   } catch (error: any) {

@@ -1,67 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { ensureFapshiTransaction, extractFapshiStatus, normalizeFapshiStatus } from "@/lib/fapshi-payments"
+import { fulfillMachinePurchase } from "@/lib/payment-fulfillment"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const FAPSHI_BASE_URL = process.env.FAPSHI_BASE_URL || "https://live.fapshi.com"
-
-const normalizeStatus = (status: string | null | undefined) => {
-  if (!status) return "unknown"
-  const normalized = status.toLowerCase()
-  if (["successful", "success", "completed", "complete"].includes(normalized)) return "successful"
-  if (["failed", "fail", "canceled", "cancelled"].includes(normalized)) return "failed"
-  if (["pending", "processing", "in_progress"].includes(normalized)) return "pending"
-  return normalized
-}
-
-const extractMachineId = (transaction: any) => {
-  return (
-    transaction?.metadata?.machineId ||
-    transaction?.metadata?.machine_id ||
-    transaction?.metadata?.machine_type_id ||
-    (typeof transaction?.external_id === "string"
-      ? transaction.external_id.split("_")[1]
-      : null)
-  )
-}
-
-async function activateMachineFromTransaction(transaction: any) {
-  const userId = transaction.user_id
-  const machineId = extractMachineId(transaction)
-
-  if (!userId || !machineId) return
-
-  const { data: existing } = await supabase
-    .from("user_machines")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("machine_type_id", parseInt(machineId))
-    .maybeSingle()
-
-  if (existing) return
-
-  await supabase.from("user_machines").insert({
-    user_id: userId,
-    machine_type_id: parseInt(machineId),
-    purchased_at: transaction.created_at || new Date().toISOString(),
-    is_active: true,
-    activated_at: new Date().toISOString(),
-    last_claim_time: new Date().toISOString()
-  })
-
-  const { count } = await supabase
-    .from("user_machines")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", userId)
-
-  await supabase
-    .from("users")
-    .update({ machines_owned: count || 0 })
-    .eq("id", userId)
-}
+const FAPSHI_BASE_URL = process.env.FAPSHI_BASE_URL || process.env.FAPSHI_ENVIRONMENT || "https://live.fapshi.com"
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,6 +29,16 @@ export async function POST(request: NextRequest) {
 
     const responseData = await response.json().catch(() => null)
 
+    console.log("📥 Fapshi status response:", {
+      transId,
+      ok: response.ok,
+      statusCode: response.status,
+      status: extractFapshiStatus(responseData),
+      message: responseData?.message || responseData?.data?.message || null,
+      reason: responseData?.reason || responseData?.data?.reason || responseData?.data?.failureReason || null,
+      medium: responseData?.medium || responseData?.data?.medium || null
+    })
+
     if (!response.ok) {
       return NextResponse.json(
         { success: false, error: responseData?.message || "Failed to check status" },
@@ -89,20 +46,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const status =
-      responseData?.status ||
-      responseData?.data?.status ||
-      (Array.isArray(responseData) ? responseData?.[0]?.status : null)
+    const normalizedStatus = normalizeFapshiStatus(extractFapshiStatus(responseData))
 
-    const normalizedStatus = normalizeStatus(status)
-
-    const { data: transaction } = await supabase
+    let { data: transaction } = await supabase
       .from("transactions")
       .select("id, user_id, external_id, metadata, created_at")
       .eq("fapshi_trans_id", transId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
+
+    if (!transaction) {
+      transaction = await ensureFapshiTransaction(supabase, responseData)
+    }
 
     if (!transaction) {
       return NextResponse.json({ success: false, error: "Transaction not found" }, { status: 404 })
@@ -116,13 +72,16 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", transaction.id)
 
+    let fulfillment = null
     if (normalizedStatus === "successful") {
-      await activateMachineFromTransaction(transaction)
+      fulfillment = await fulfillMachinePurchase(supabase, transaction)
     }
 
     return NextResponse.json({
       success: true,
-      status: normalizedStatus
+      status: normalizedStatus,
+      recovered: Boolean((transaction as any)?.metadata?.recovered_from_fapshi),
+      fulfillment
     })
   } catch (error: any) {
     console.error("❌ Reconcile error:", error)

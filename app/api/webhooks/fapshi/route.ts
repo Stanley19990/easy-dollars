@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { ensureFapshiTransaction, normalizeFapshiStatus } from '@/lib/fapshi-payments'
+import { fulfillMachinePurchase } from '@/lib/payment-fulfillment'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,8 +61,10 @@ export async function POST(request: NextRequest) {
     // Clean up old processed webhooks after 10 minutes
     setTimeout(() => processedWebhooks.delete(transId), 10 * 60 * 1000)
 
-    const normalizedStatus = typeof status === "string" ? status.toLowerCase() : "unknown"
-    const isSuccess = ["successful", "success", "completed", "complete"].includes(normalizedStatus)
+    const normalizedStatus = normalizeFapshiStatus(status)
+    const isSuccess = normalizedStatus === "successful"
+
+    await ensureFapshiTransaction(supabase, webhookData)
 
     // Update transaction status in database
     const { error: updateError } = await supabase
@@ -90,7 +94,7 @@ export async function POST(request: NextRequest) {
       if (txError || !transaction) {
         console.error('❌ Unable to load transaction for activation:', txError)
       } else {
-        await activateUserMachine(transaction)
+        await fulfillMachinePurchase(supabase, transaction)
       }
     }
 

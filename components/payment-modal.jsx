@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,7 +12,7 @@ import { CashRiseLogo } from "@/components/cashrise-logo"
 export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSuccess }) {
   const [processing, setProcessing] = useState(false)
   const [phone, setPhone] = useState("")
-  const [selectedMethod, setSelectedMethod] = useState("mobile_money")
+  const [selectedMethod, setSelectedMethod] = useState("auto")
   const [errorMessage, setErrorMessage] = useState("")
 
   // Helper function to get discounted price
@@ -81,9 +81,9 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           userId: user.id,
           machineName: machine.name,
           phone: formattedPhone,
-          medium: selectedMethod === "mobile_money" ? "mobile money" : "orange money",
-          userEmail: user.email,
-          userName: user.name || user.email?.split('@')[0] || 'Customer'
+          ...(selectedMethod !== "auto" && {
+            medium: selectedMethod === "mobile_money" ? "mobile money" : "orange money"
+          })
         })
       })
 
@@ -139,6 +139,9 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
           <DialogTitle className="text-xl text-white text-center">
             Purchase {machine?.name || 'Machine'}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Enter your Cameroon mobile money number to receive a payment prompt for this machine purchase.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -193,7 +196,16 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
 
             <div className="space-y-2">
               <Label className="text-slate-200">Payment Method</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  type="button"
+                  variant={selectedMethod === "auto" ? "default" : "outline"}
+                  onClick={() => setSelectedMethod("auto")}
+                  disabled={processing}
+                  className={selectedMethod === "auto" ? "bg-cyan-400 hover:bg-cyan-500 text-slate-950" : "bg-slate-900/70 hover:bg-slate-800"}
+                >
+                  Auto
+                </Button>
                 <Button
                   type="button"
                   variant={selectedMethod === "mobile_money" ? "default" : "outline"}

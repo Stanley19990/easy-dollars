@@ -77,6 +77,21 @@ export async function POST(request: NextRequest) {
 
     const usernameForUser = generatedUsername || generateUsername(fullName)
 
+    const cleanReferralCode = typeof referralCode === "string" ? referralCode.trim() : ""
+    let referrerId: string | null = null
+
+    if (cleanReferralCode) {
+      const { data: referrer } = await supabase
+        .from("users")
+        .select("id, referral_code")
+        .eq("referral_code", cleanReferralCode)
+        .maybeSingle()
+
+      if (referrer?.id && referrer.id !== userId) {
+        referrerId = referrer.id
+      }
+    }
+
     const userProfile: Record<string, any> = {
       id: userId,
       email: authEmail,
@@ -87,8 +102,8 @@ export async function POST(request: NextRequest) {
       referral_code: referralCodeForUser
     }
 
-    if (referralCode) {
-      userProfile.referred_by = referralCode.trim()
+    if (referrerId) {
+      userProfile.referred_by = cleanReferralCode
     }
 
     const { error: upsertError } = await supabase
@@ -102,30 +117,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (referralCode) {
-      const cleanReferralCode = referralCode.trim()
-
-      const { data: referrer, error: referrerError } = await supabase
-        .from("users")
+    if (referrerId) {
+      const { data: existingReferral } = await supabase
+        .from("referrals")
         .select("id")
-        .eq("referral_code", cleanReferralCode)
-        .single()
+        .eq("referred_id", userId)
+        .maybeSingle()
 
-      if (!referrerError && referrer?.id && referrer.id !== userId) {
-        const { data: existingReferral } = await supabase
-          .from("referrals")
-          .select("id")
-          .eq("referred_id", userId)
-          .maybeSingle()
+      if (!existingReferral) {
+        const { error: referralInsertError } = await supabase.from("referrals").insert({
+          referrer_id: referrerId,
+          referred_id: userId,
+          referral_date: new Date().toISOString(),
+          bonus: 0,
+          status: "pending"
+        })
 
-        if (!existingReferral) {
-          await supabase.from("referrals").insert({
-            referrer_id: referrer.id,
-            referred_id: userId,
-            referral_date: new Date().toISOString(),
-            bonus: 0,
-            status: "pending"
-          })
+        if (referralInsertError) {
+          console.error("Referral insert error:", referralInsertError)
         }
       }
     }

@@ -68,7 +68,10 @@ export function ReferralLink() {
     )
   }
 
-  const referralLink = `https://easydollars.com/signup?ref=${referralCode}`
+  const referralLink =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/signup?ref=${referralCode}`
+      : `/signup?ref=${referralCode}`
 
   const copyToClipboard = async () => {
     try {
