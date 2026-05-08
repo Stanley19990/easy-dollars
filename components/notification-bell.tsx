@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Check, Loader2 } from "lucide-react"
+import { Bell, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -13,6 +13,9 @@ import {
 import { NotificationService } from "@/lib/notification-service"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
+import { enablePushNotifications, supportsPushNotifications } from "@/lib/push-client"
+import { useLanguage } from "@/components/language-provider"
+import { supabase } from "@/lib/supabase"
 
 interface Notification {
   id: string
@@ -20,16 +23,18 @@ interface Notification {
   title: string
   message: string
   type: string
-  read: boolean
+  is_read: boolean
   created_at: string
   action_url?: string
 }
 
 export function NotificationBell() {
   const { user } = useAuth()
+  const { language } = useLanguage()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [enablingPush, setEnablingPush] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
   const fetchNotifications = async () => {
@@ -39,7 +44,7 @@ export function NotificationBell() {
     try {
       const data = await NotificationService.getUserNotifications(user.id)
       setNotifications(data)
-      setUnreadCount(data.filter((n: Notification) => !n.read).length)
+      setUnreadCount(data.filter((n: Notification) => !n.is_read).length)
     } catch (error) {
       console.error('Error fetching notifications:', error)
     } finally {
@@ -51,7 +56,7 @@ export function NotificationBell() {
     try {
       await NotificationService.markAsRead(notificationId)
       setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       )
       setUnreadCount(prev => Math.max(0, prev - 1))
     } catch (error) {
@@ -62,8 +67,8 @@ export function NotificationBell() {
 
   const markAllAsRead = async () => {
     try {
-      await NotificationService.markAsRead(user!.id)
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      await NotificationService.markAllAsRead(user!.id)
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
       setUnreadCount(0)
       toast.success('All notifications marked as read')
     } catch (error) {
@@ -77,6 +82,44 @@ export function NotificationBell() {
       fetchNotifications()
     }
   }, [user])
+
+  useEffect(() => {
+    if (!user) return
+
+    const channel = supabase
+      .channel(`notifications-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          fetchNotifications()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user])
+
+  const handleEnablePush = async () => {
+    if (!user) return
+    setEnablingPush(true)
+
+    try {
+      await enablePushNotifications(user.id, language)
+      toast.success("Push notifications enabled")
+    } catch (error: any) {
+      toast.error(error.message || "Could not enable push notifications")
+    } finally {
+      setEnablingPush(false)
+    }
+  }
 
   if (!user) return null
 
@@ -107,6 +150,21 @@ export function NotificationBell() {
           )}
         </div>
 
+        {supportsPushNotifications() && (
+          <div className="p-3 border-b border-slate-700">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleEnablePush}
+              disabled={enablingPush}
+              className="w-full border-cyan-500/30 text-cyan-200 hover:text-cyan-100"
+            >
+              {enablingPush ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Bell className="h-4 w-4 mr-2" />}
+              Enable phone reminders
+            </Button>
+          </div>
+        )}
+
         <div className="max-h-80 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center p-4">
@@ -121,7 +179,7 @@ export function NotificationBell() {
               <DropdownMenuItem
                 key={notification.id}
                 className={`p-3 border-b border-slate-700 last:border-b-0 cursor-pointer ${
-                  !notification.read ? 'bg-slate-700/50' : ''
+                  !notification.is_read ? 'bg-slate-700/50' : ''
                 }`}
                 onClick={() => markAsRead(notification.id)}
               >
@@ -137,7 +195,7 @@ export function NotificationBell() {
                       {new Date(notification.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  {!notification.read && (
+                  {!notification.is_read && (
                     <div className="w-2 h-2 bg-cyan-400 rounded-full flex-shrink-0 mt-1" />
                   )}
                 </div>

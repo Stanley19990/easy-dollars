@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createNotificationAndPush } from '@/lib/push-server'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -183,6 +184,20 @@ export async function POST(request: NextRequest) {
     if (dbError) {
       console.error('❌ Database error:', dbError)
       // Don't fail the payment if DB save fails
+    } else {
+      await createNotificationAndPush(supabase, {
+        user_id: userId,
+        title: 'Payment request sent',
+        message: 'Confirm the payment prompt on your phone to activate your machine.',
+        type: 'payment_started',
+        action_url: '/dashboard',
+        related_id: responseData.transId,
+        metadata: {
+          trans_id: responseData.transId,
+          external_id: externalId,
+          machine_id: machineId
+        }
+      })
     }
 
     return NextResponse.json({

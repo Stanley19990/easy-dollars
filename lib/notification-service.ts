@@ -15,8 +15,32 @@ const getSupabaseClient = () => {
 const supabase = getSupabaseClient()
 
 export class NotificationService {
-  static markAsRead(notificationId: string) {
-    throw new Error("Method not implemented.")
+  static async markAsRead(notificationId: string) {
+    if (!supabase) return null
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId)
+      .select()
+      .maybeSingle()
+
+    if (error) throw error
+    return data
+  }
+
+  static async markAllAsRead(userId: string) {
+    if (!supabase) return null
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', userId)
+      .eq('is_read', false)
+      .select()
+
+    if (error) throw error
+    return data
   }
   static async createNotification(notification: any) {
     if (!supabase) {
@@ -51,6 +75,7 @@ export class NotificationService {
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
+        .limit(30)
 
       if (error) throw error
       return data || []

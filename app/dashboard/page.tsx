@@ -12,7 +12,6 @@ import { FloatingParticles } from "@/components/floating-particles"
 import { Toaster, toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
-import { NotificationBell } from '@/components/notification-bell'
 import PromoModal from "@/components/PromoModal"
 import WeeklyReferralModal from "@/components/WeeklyReferralModal"
 
@@ -263,8 +262,6 @@ export default function DashboardPage() {
     <div className="min-h-screen relative overflow-hidden">
       <div className="cr-backdrop cr-grid"></div>
       <FloatingParticles />
-      <NotificationBell />
-      
       {/* 🔥 Weekly Referral Modal - Shows first */}
       <WeeklyReferralModal />
       

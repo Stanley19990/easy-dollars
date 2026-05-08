@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createNotificationAndPush } from '@/lib/push-server'
 
 // Initialize Supabase client with service role key
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -215,6 +216,20 @@ export async function POST(request: NextRequest) {
       console.error('⚠️ Transaction recording error:', transactionError)
       // Don't fail the claim if this fails
     }
+
+    await createNotificationAndPush(supabase, {
+      user_id: userId,
+      title: 'Earnings claimed',
+      message: `${earnedAmountXAF.toLocaleString()} XAF was added to your wallet.`,
+      type: 'claim_earnings',
+      action_url: '/wallet',
+      related_id: userMachineId,
+      metadata: {
+        machine_id: userMachineId,
+        machine_type_id: userMachine.machine_type_id,
+        amount: earnedAmountXAF
+      }
+    })
 
     console.log('✅ Claim completed successfully')
 

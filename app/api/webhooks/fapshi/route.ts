@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { ensureFapshiTransaction, normalizeFapshiStatus } from '@/lib/fapshi-payments'
 import { fulfillMachinePurchase } from '@/lib/payment-fulfillment'
+import { createNotificationAndPush } from '@/lib/push-server'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -95,6 +96,39 @@ export async function POST(request: NextRequest) {
         console.error('❌ Unable to load transaction for activation:', txError)
       } else {
         await fulfillMachinePurchase(supabase, transaction)
+      }
+    } else if (normalizedStatus === "failed") {
+      const { data: transaction } = await supabase
+        .from('transactions')
+        .select('user_id')
+        .eq('fapshi_trans_id', transId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (transaction?.user_id) {
+        const notificationKey = `payment_${transId}_failed`
+        const { data: existingFailureNotice } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("user_id", transaction.user_id)
+          .eq("metadata->>notification_key", notificationKey)
+          .maybeSingle()
+
+        if (!existingFailureNotice) {
+          await createNotificationAndPush(supabase, {
+            user_id: transaction.user_id,
+            title: "Payment failed",
+            message: "Your machine payment was not completed. Please try again or use another number.",
+            type: "payment_failed",
+            action_url: "/dashboard",
+            related_id: transId,
+            metadata: {
+              notification_key: notificationKey,
+              trans_id: transId
+            }
+          })
+        }
       }
     }
 

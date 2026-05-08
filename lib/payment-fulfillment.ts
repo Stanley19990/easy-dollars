@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { extractMachineId } from "@/lib/fapshi-payments"
+import { createNotificationAndPush } from "@/lib/push-server"
 
 const REFERRAL_BONUS_XAF = 1000
 
@@ -41,6 +42,19 @@ export async function fulfillMachinePurchase(supabase: SupabaseClient, transacti
     }
 
     activated = true
+
+    await createNotificationAndPush(supabase, {
+      user_id: userId,
+      title: "Machine activated",
+      message: "Your machine purchase is confirmed and mining has started.",
+      type: "machine_purchase",
+      action_url: "/dashboard",
+      related_id: transaction?.id?.toString(),
+      metadata: {
+        machine_id: machineId,
+        transaction_id: transaction?.id
+      }
+    })
   }
 
   await syncMachineCount(supabase, userId)
@@ -214,23 +228,19 @@ export async function processReferralBonusForMachine(
     console.error("Referral transaction record failed:", txError)
   }
 
-  await supabase
-    .from("notifications")
-    .insert({
-      user_id: referrerId,
-      title: "Referral Bonus Earned",
-      message: `You earned ${REFERRAL_BONUS_XAF.toLocaleString()} XAF because your referral purchased a machine.`,
-      type: "referral",
-      related_id: referral.id.toString(),
-      metadata: {
-        bonus_amount: REFERRAL_BONUS_XAF,
-        referred_user_id: userId,
-        machine_id: machineId
-      }
-    })
-    .then(({ error }) => {
-      if (error) console.warn("Referral notification failed:", error)
-    })
+  await createNotificationAndPush(supabase, {
+    user_id: referrerId,
+    title: "Referral Bonus Earned",
+    message: `You earned ${REFERRAL_BONUS_XAF.toLocaleString()} XAF because your referral purchased a machine.`,
+    type: "referral_bonus",
+    action_url: "/referrals",
+    related_id: referral.id.toString(),
+    metadata: {
+      bonus_amount: REFERRAL_BONUS_XAF,
+      referred_user_id: userId,
+      machine_id: machineId
+    }
+  })
 
   return { paid: true, message: "Referral bonus paid" }
 }

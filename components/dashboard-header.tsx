@@ -4,7 +4,7 @@
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { LogOut, Settings, Bell, Wallet, Users, Shield, Menu, X, CheckCircle, AlertCircle, Clock, Cpu } from "lucide-react"
+import { LogOut, Settings, Wallet, Users, Shield, Menu, X, CheckCircle, AlertCircle, Clock, Cpu } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { authService } from "@/lib/auth"
@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { CashRiseLogo } from "@/components/cashrise-logo"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useLanguage } from "@/components/language-provider"
+import { NotificationBell } from "@/components/notification-bell"
 
 export function DashboardHeader() {
   const { t } = useLanguage()
@@ -324,9 +325,7 @@ export function DashboardHeader() {
 
               <LanguageSwitcher compact />
 
-              <Button variant="ghost" size="sm" className="text-slate-400 hover:text-cyan-400">
-                <Bell className="h-4 w-4" />
-              </Button>
+              <NotificationBell />
 
               <div className="flex items-center space-x-2">
                 <Avatar
@@ -431,10 +430,10 @@ export function DashboardHeader() {
                   </Link>
                 )}
 
-                <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-cyan-400">
-                  <Bell className="h-4 w-4 mr-3" />
-                  {t("notifications")}
-                </Button>
+                <div className="flex items-center justify-start px-3 py-2">
+                  <NotificationBell />
+                  <span className="ml-3 text-slate-400">{t("notifications")}</span>
+                </div>
 
                 <Button
                   variant="ghost"

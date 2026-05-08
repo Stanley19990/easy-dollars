@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { createNotificationAndPush } from "@/lib/push-server"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -135,6 +136,19 @@ export async function POST(request: NextRequest) {
 
         if (referralInsertError) {
           console.error("Referral insert error:", referralInsertError)
+        } else {
+          await createNotificationAndPush(supabase, {
+            user_id: referrerId,
+            title: "New referral joined",
+            message: `${fullName} joined using your referral link.`,
+            type: "referral_joined",
+            action_url: "/referrals",
+            related_id: userId,
+            metadata: {
+              referred_user_id: userId,
+              referral_code: cleanReferralCode
+            }
+          })
         }
       }
     }

@@ -1,4 +1,5 @@
 export type Language = "en" | "fr"
+export type LanguagePreference = Language | "system"
 
 export const translations = {
   en: {
@@ -20,6 +21,7 @@ export const translations = {
     createAccount: "Create Account",
     loginToDashboard: "Login to Dashboard",
     selectLanguage: "Language",
+    systemLanguage: "System",
     english: "English",
     french: "Français",
     myWallet: "My Wallet",
@@ -50,6 +52,7 @@ export const translations = {
     createAccount: "Créer un compte",
     loginToDashboard: "Se connecter au tableau de bord",
     selectLanguage: "Langue",
+    systemLanguage: "Système",
     english: "English",
     french: "Français",
     myWallet: "Mon portefeuille",
