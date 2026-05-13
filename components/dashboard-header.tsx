@@ -4,7 +4,7 @@
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { LogOut, Settings, Wallet, Users, Shield, Menu, X, CheckCircle, AlertCircle, Clock, Cpu } from "lucide-react"
+import { LogOut, Settings, Wallet, Users, Shield, Menu, X, CheckCircle, AlertCircle, Clock, Cpu, Bell } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { authService } from "@/lib/auth"
@@ -29,6 +29,7 @@ export function DashboardHeader() {
   const [machinePurchaseDays, setMachinePurchaseDays] = useState<number>(0)
   const [hasPurchasedMachine, setHasPurchasedMachine] = useState(false)
   const [showVerificationPrompt, setShowVerificationPrompt] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   // Load verification status and machine purchase eligibility
   useEffect(() => {
@@ -37,6 +38,14 @@ export function DashboardHeader() {
       checkMachinePurchaseEligibility()
     }
   }, [user])
+
+  useEffect(() => {
+    const updateIsMobile = () => setIsMobile(window.innerWidth < 768)
+
+    updateIsMobile()
+    window.addEventListener("resize", updateIsMobile)
+    return () => window.removeEventListener("resize", updateIsMobile)
+  }, [])
 
   const loadVerificationStatus = async () => {
     if (!user) return
@@ -277,6 +286,7 @@ export function DashboardHeader() {
             </div>
 
             {/* Desktop Navigation */}
+            {!isMobile && (
             <div className="hidden md:flex items-center space-x-2 lg:space-x-4">
               {/* Verification Button */}
               <Button
@@ -344,6 +354,7 @@ export function DashboardHeader() {
                 </Button>
               </div>
             </div>
+            )}
 
             {/* Mobile Menu Button */}
             <div className="md:hidden flex items-center space-x-2">
@@ -366,6 +377,7 @@ export function DashboardHeader() {
                   {getUserInitial()}
                 </AvatarFallback>
               </Avatar>
+              <NotificationBell />
               <Button
                 variant="ghost"
                 size="sm"
@@ -431,9 +443,9 @@ export function DashboardHeader() {
                   </Link>
                 )}
 
-                <div className="flex items-center justify-start px-3 py-2">
-                  <NotificationBell />
-                  <span className="ml-3 text-slate-400">{t("notifications")}</span>
+                <div className="flex items-center justify-start px-3 py-2 text-slate-400">
+                  <Bell className="h-4 w-4 mr-3" />
+                  <span>{t("notifications")}</span>
                 </div>
 
                 <Button
