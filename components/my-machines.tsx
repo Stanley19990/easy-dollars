@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Zap, Cpu, BarChart3, DollarSign, Image as ImageIcon, Timer, CheckCircle, Clock, TrendingUp, Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
+import { firstRelation, formatNumber, toNumber } from "@/lib/safe-data"
 
 interface UserMachine {
   id: string
@@ -123,8 +124,15 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
       
       const machinesWithDetails = (data || []).map(machine => ({
         ...machine,
-        machine_types: Array.isArray(machine.machine_types) ? machine.machine_types[0] : machine.machine_types,
-        total_earned: machine.total_earned || 0,
+        machine_types: firstRelation(machine.machine_types) || {
+          name: "Unknown Machine",
+          daily_earnings: 0,
+          monthly_earnings: 0,
+          description: "",
+          features: [],
+          image_url: ""
+        },
+        total_earned: toNumber(machine.total_earned),
         activated_at: machine.activated_at,
         last_claim_time: machine.last_claim_time
       }))
@@ -329,7 +337,16 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
         ) : (
           <div className="space-y-6">
             {userMachines.map((machine, index) => {
-              const machineData = machine.machine_types
+              const machineData = machine.machine_types || {
+                name: "Unknown Machine",
+                daily_earnings: 0,
+                monthly_earnings: 0,
+                description: "",
+                features: [],
+                image_url: ""
+              }
+              const dailyEarnings = toNumber(machineData.daily_earnings)
+              const totalEarned = toNumber(machine.total_earned)
               const gradientClass = getGradientClass(machine.machine_type_id)
               const canClaim = canClaimEarnings(machine)
               const progress = getMiningProgress(machine)
@@ -431,21 +448,21 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                       <div className="bg-slate-900/60 rounded-2xl p-4 text-center border border-cyan-400/10">
                         <div className="text-xs text-slate-400 mb-1">Available Now</div>
                         <div className="text-lg font-bold text-emerald-300">
-                          {canClaim ? machineData.daily_earnings.toLocaleString() : '0'} XAF
+                          {canClaim ? formatNumber(dailyEarnings) : '0'} XAF
                         </div>
                       </div>
 
                       <div className="bg-slate-900/60 rounded-2xl p-4 text-center border border-cyan-400/10">
                         <div className="text-xs text-slate-400 mb-1">Daily Rate</div>
                         <div className="text-lg font-bold text-amber-300">
-                          {machineData.daily_earnings.toLocaleString()} XAF
+                          {formatNumber(dailyEarnings)} XAF
                         </div>
                       </div>
 
                       <div className="bg-slate-900/60 rounded-2xl p-4 text-center border border-cyan-400/10">
                         <div className="text-xs text-slate-400 mb-1">Total Earned</div>
                         <div className="text-lg font-bold text-amber-200">
-                          {machine.total_earned.toLocaleString()} XAF
+                          {formatNumber(totalEarned)} XAF
                         </div>
                       </div>
 
@@ -480,7 +497,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                           ) : (
                             <>
                               <CheckCircle className="h-5 w-5 mr-2" />
-                              Claim {machineData.daily_earnings.toLocaleString()} XAF
+                              Claim {formatNumber(dailyEarnings)} XAF
                             </>
                           )}
                         </Button>

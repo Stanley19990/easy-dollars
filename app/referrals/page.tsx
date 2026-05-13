@@ -9,6 +9,7 @@ import { FloatingParticles } from "@/components/floating-particles"
 import { Toaster, toast } from "sonner"
 import { Copy, DollarSign, Users, TrendingUp, CheckCircle, Clock, Share2, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { firstRelation, formatDate, formatNumber, toNumber } from "@/lib/safe-data"
 
 interface ReferralStats {
   totalReferrals: number
@@ -114,8 +115,8 @@ export default function ReferralsPage() {
         console.log("📊 Referrals data:", referrals)
 
         const totalReferrals = referrals?.length || 0
-        const totalBonusEarned = referrals?.reduce((sum: number, r: any) => sum + (r.bonus || 0), 0) || 0
-        const pendingReferrals = referrals?.filter((r: any) => !r.bonus || r.bonus === 0).length || 0
+        const totalBonusEarned = referrals?.reduce((sum: number, r: any) => sum + toNumber(r.bonus), 0) || 0
+        const pendingReferrals = referrals?.filter((r: any) => toNumber(r.bonus) === 0).length || 0
 
         setReferralStats({
           totalReferrals,
@@ -177,7 +178,7 @@ export default function ReferralsPage() {
   }
 
   const getReferralStatus = (referral: any) => {
-    if (referral.bonus > 0) {
+    if (toNumber(referral.bonus) > 0) {
       return { 
         status: 'completed', 
         text: 'Bonus Paid', 
@@ -255,7 +256,7 @@ export default function ReferralsPage() {
                     <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-white mx-auto mb-2" />
                     <p className="text-xs sm:text-sm text-slate-200">Total Bonus Earned</p>
                     <p className="text-xl sm:text-2xl font-bold text-white">
-                      {referralStats.totalBonusEarned.toLocaleString()} XAF
+                      {formatNumber(referralStats.totalBonusEarned)} XAF
                     </p>
                   </div>
                   <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-3 sm:p-4 text-center">
@@ -328,16 +329,18 @@ export default function ReferralsPage() {
                             {referralStats.referrals.map((referral) => {
                               const statusInfo = getReferralStatus(referral)
                               const StatusIcon = statusInfo.icon
+                              const referredUser = firstRelation<any>(referral.referred_user)
+                              const bonus = toNumber(referral.bonus)
                               
                               return (
                                 <tr key={referral.id} className="hover:bg-slate-800/40 border-b border-slate-800/60">
                                   <td className="py-2 sm:py-3 px-2 sm:px-4">
                                     <div>
                                       <p className="font-medium text-white text-xs sm:text-sm">
-                                        {referral.referred_user?.username || 'New User'}
+                                        {referredUser?.username || 'New User'}
                                       </p>
                                       <p className="text-xs text-slate-400 truncate max-w-[120px] sm:max-w-none">
-                                        {referral.referred_user?.email || `User ID: ${referral.referred_id?.substring(0, 8) || 'Unknown'}...`}
+                                        {referredUser?.email || `User ID: ${referral.referred_id?.substring(0, 8) || 'Unknown'}...`}
                                       </p>
                                     </div>
                                   </td>
@@ -351,13 +354,13 @@ export default function ReferralsPage() {
                                   </td>
                                   <td className="py-2 sm:py-3 px-2 sm:px-4">
                                     <span className={`font-semibold text-xs sm:text-sm whitespace-nowrap ${
-                                      referral.bonus > 0 ? 'text-emerald-300' : 'text-slate-400'
+                                      bonus > 0 ? 'text-emerald-300' : 'text-slate-400'
                                     }`}>
-                                      {referral.bonus > 0 ? `${referral.bonus.toLocaleString()} XAF` : '0 XAF'}
+                                      {bonus > 0 ? `${formatNumber(bonus)} XAF` : '0 XAF'}
                                     </span>
                                   </td>
                                   <td className="py-2 sm:py-3 px-2 sm:px-4 hidden sm:table-cell text-xs sm:text-sm">
-                                    {referral.referral_date ? new Date(referral.referral_date).toLocaleDateString() : 'Unknown'}
+                                    {formatDate(referral.referral_date)}
                                   </td>
                                 </tr>
                               )

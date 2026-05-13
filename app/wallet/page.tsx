@@ -11,6 +11,7 @@ import { EarningsConverter } from "@/components/earnings-converter"
 import { FloatingParticles } from "@/components/floating-particles"
 import { Toaster, toast } from "sonner"
 import { supabase } from "@/lib/supabase"
+import { firstRelation, formatDate, formatNumber } from "@/lib/safe-data"
 
 export default function WalletPage() {
   const { user, loading } = useAuth()
@@ -513,14 +514,18 @@ export default function WalletPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {referrals.map((ref) => (
-                    <tr key={ref.id} className="border-b border-slate-800">
-                      <td className="px-4 py-2">{ref.referred_user?.[0]?.username ?? ref.referred_user?.username ?? "N/A"}</td>
-                      <td className="px-4 py-2">{ref.referred_user?.[0]?.email ?? ref.referred_user?.email ?? "N/A"}</td>
-                      <td className="px-4 py-2 font-bold text-emerald-300">{ref.bonus} XAF</td>
-                      <td className="px-4 py-2">{new Date(ref.referral_date).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
+                  {referrals.map((ref) => {
+                    const referredUser = firstRelation<any>(ref.referred_user)
+
+                    return (
+                      <tr key={ref.id} className="border-b border-slate-800">
+                        <td className="px-4 py-2">{referredUser?.username ?? "N/A"}</td>
+                        <td className="px-4 py-2">{referredUser?.email ?? "N/A"}</td>
+                        <td className="px-4 py-2 font-bold text-emerald-300">{formatNumber(ref.bonus)} XAF</td>
+                        <td className="px-4 py-2">{formatDate(ref.referral_date)}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             )}

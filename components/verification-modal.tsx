@@ -66,9 +66,10 @@ export function VerificationModal({ open, onOpenChange, onVerificationComplete }
         if (userError) throw userError
 
         // Calculate days since first machine purchase
-        const purchaseDate = userData?.first_machine_purchase_date || userMachines[0].purchased_at
+        const purchaseDate = userData?.first_machine_purchase_date || userMachines?.[0]?.purchased_at
         if (purchaseDate) {
           const firstPurchase = new Date(purchaseDate)
+          if (Number.isNaN(firstPurchase.getTime())) return
           const now = new Date()
           const diffTime = Math.abs(now.getTime() - firstPurchase.getTime())
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))

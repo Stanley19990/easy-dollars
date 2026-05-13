@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/use-auth"
 import { VerificationProgress } from "@/components/verification-progress"
+import { firstRelation, formatDate, formatNumber, toNumber } from "@/lib/safe-data"
 
 export default function VerificationStep2() {
   const { user } = useAuth()
@@ -78,9 +79,10 @@ export default function VerificationStep2() {
         if (userError) throw userError
 
         // Calculate days since first machine purchase
-        const purchaseDate = userData?.first_machine_purchase_date || userMachines[0].purchased_at
+        const purchaseDate = userData?.first_machine_purchase_date || userMachines?.[0]?.purchased_at
         if (purchaseDate) {
           const firstPurchase = new Date(purchaseDate)
+          if (Number.isNaN(firstPurchase.getTime())) return
           const now = new Date()
           const diffTime = Math.abs(now.getTime() - firstPurchase.getTime())
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
@@ -242,14 +244,16 @@ export default function VerificationStep2() {
 
       // Process referral records
       const referralDetails = referralRecords?.map(ref => {
-        const hasBonus = ref.bonus && ref.bonus > 0
-        const hasMachine = (ref.referred_user?.[0]?.machines_owned > 0) || hasBonus
+        const referredUser = firstRelation<any>(ref.referred_user)
+        const bonus = toNumber(ref.bonus)
+        const hasBonus = bonus > 0
+        const hasMachine = toNumber(referredUser?.machines_owned) > 0 || hasBonus
         
         return {
           id: ref.id,
-          email: ref.referred_user?.[0]?.email || 'No email',
-          username: ref.referred_user?.[0]?.username || 'User',
-          bonus: ref.bonus || 0,
+          email: referredUser?.email || 'No email',
+          username: referredUser?.username || 'User',
+          bonus,
           referral_date: ref.referral_date,
           hasPurchasedMachine: hasMachine
         }
@@ -746,12 +750,12 @@ export default function VerificationStep2() {
                                 <span className={`font-medium ${
                                   ref.bonus > 0 ? 'text-green-400' : 'text-slate-400'
                                 }`}>
-                                  {ref.bonus > 0 ? `${ref.bonus.toLocaleString()} XAF` : 'Pending'}
+                                  {ref.bonus > 0 ? `${formatNumber(ref.bonus)} XAF` : 'Pending'}
                                 </span>
                               </div>
                             </td>
                             <td className="py-2 px-3 text-slate-400">
-                              {ref.referral_date ? new Date(ref.referral_date).toLocaleDateString() : 'Unknown'}
+                              {formatDate(ref.referral_date)}
                             </td>
                           </tr>
                         ))}

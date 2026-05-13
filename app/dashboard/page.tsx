@@ -14,6 +14,7 @@ import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import PromoModal from "@/components/PromoModal"
 import WeeklyReferralModal from "@/components/WeeklyReferralModal"
+import { firstRelation, formatNumber, toNumber } from "@/lib/safe-data"
 
 // Define types
 interface ReferredUser {
@@ -26,7 +27,7 @@ interface Referral {
   referred_id: string;
   bonus: number;
   referral_date: string;
-  referred_user: ReferredUser[];
+  referred_user: ReferredUser[] | ReferredUser | null;
 }
 
 interface MachineEstimate {
@@ -130,8 +131,8 @@ export default function DashboardPage() {
       const machineEstimates: MachineEstimate[] = []
 
       userMachines?.forEach((um: any) => {
-        const machineData = Array.isArray(um.machine_types) ? um.machine_types[0] : um.machine_types
-        const dailyEarning = machineData?.daily_earnings || 0
+        const machineData = firstRelation<any>(um.machine_types)
+        const dailyEarning = toNumber(machineData?.daily_earnings)
         totalEstimated += dailyEarning
         machineEstimates.push({
           name: machineData?.name || 'Unknown Machine',
@@ -185,11 +186,9 @@ export default function DashboardPage() {
       const earningsDetails = []
 
       for (const userMachine of userMachines) {
-        const machineData = Array.isArray((userMachine as any).machine_types) 
-          ? (userMachine as any).machine_types[0] 
-          : (userMachine as any).machine_types
+        const machineData = firstRelation<any>((userMachine as any).machine_types)
         
-        const dailyEarning = machineData?.daily_earnings || 0
+        const dailyEarning = toNumber(machineData?.daily_earnings)
         totalEarnings += dailyEarning
         
         earningsDetails.push({
@@ -333,13 +332,13 @@ export default function DashboardPage() {
                       {todaysEarnings.machineEstimates.map((machine, index) => (
                         <div key={index} className="flex items-center justify-between">
                           <span className="text-slate-300 text-sm">{machine.name}</span>
-                          <span className="text-green-400 font-bold">+{machine.earnings} XAF</span>
+                          <span className="text-green-400 font-bold">+{formatNumber(machine.earnings)} XAF</span>
                         </div>
                       ))}
                       <div className="border-t border-slate-700/70 pt-2 mt-2">
                         <div className="flex items-center justify-between font-bold">
                           <span className="text-cyan-300">Total</span>
-                          <span className="text-green-400">+{todaysEarnings.totalEstimated} XAF</span>
+                          <span className="text-green-400">+{formatNumber(todaysEarnings.totalEstimated)} XAF</span>
                         </div>
                       </div>
                     </div>
@@ -367,9 +366,9 @@ export default function DashboardPage() {
                 <tbody>
                   {referrals.map((ref) => (
                     <tr key={ref.id} className="border-b border-slate-700">
-                      <td className="px-4 py-2">{ref.referred_user?.[0]?.username ?? "N/A"}</td>
-                      <td className="px-4 py-2">{ref.referred_user?.[0]?.email ?? "N/A"}</td>
-                      <td className="px-4 py-2 font-bold">{ref.bonus}</td>
+                      <td className="px-4 py-2">{firstRelation<ReferredUser>(ref.referred_user)?.username ?? "N/A"}</td>
+                      <td className="px-4 py-2">{firstRelation<ReferredUser>(ref.referred_user)?.email ?? "N/A"}</td>
+                      <td className="px-4 py-2 font-bold">{formatNumber(ref.bonus)}</td>
                       <td className="px-4 py-2">{new Date(ref.referral_date).toLocaleDateString()}</td>
                     </tr>
                   ))}

@@ -10,6 +10,7 @@ import { ShoppingCart, Zap, TrendingUp, Star, Clock, DollarSign, Cpu, BarChart3,
 import { toast } from "sonner"
 import { PaymentModal } from "@/components/payment-modal"
 import { supabase } from "@/lib/supabase"
+import { asArray, formatNumber, toNumber } from "@/lib/safe-data"
 
 interface MachineType {
   id: string
@@ -401,7 +402,11 @@ const isDiscounted = (price: number) => {
               const hasDatabaseImage = machine.image_url
               const gradient = getGradientClasses(machine.gradient || "blue-cyan")
               const owned = userOwnsMachine(machine.id)
-              const roiDays = calculateROI(machine.price, machine.daily_earnings)
+              const machinePrice = toNumber(machine.price)
+              const dailyEarnings = toNumber(machine.daily_earnings)
+              const monthlyEarnings = toNumber(machine.monthly_earnings)
+              const machineFeatures = asArray<string>(machine.features)
+              const roiDays = calculateROI(machinePrice, dailyEarnings)
               const isProcessing = purchasing === machine.id
 
               return (
@@ -496,7 +501,7 @@ const isDiscounted = (price: number) => {
                     <div>
                       <p className="text-sm text-slate-300 leading-relaxed mb-3">{machine.description}</p>
                       <div className="grid grid-cols-2 gap-2">
-                        {machine.features && machine.features.map((feature, idx) => (
+                        {machineFeatures.map((feature, idx) => (
                           <div key={idx} className="flex items-center space-x-2 text-xs text-slate-400">
                             <div className={`w-1.5 h-1.5 bg-gradient-to-r ${gradient.button} rounded-full`}></div>
                             <span>{feature}</span>
@@ -513,7 +518,7 @@ const isDiscounted = (price: number) => {
                           <span className="text-sm text-slate-300">Daily Earnings</span>
                         </div>
                         <span className="text-lg font-bold text-emerald-300">
-                          {machine.daily_earnings.toLocaleString()} XAF
+                          {formatNumber(dailyEarnings)} XAF
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
@@ -522,7 +527,7 @@ const isDiscounted = (price: number) => {
                           <span className="text-sm text-slate-300">Monthly Earnings</span>
                         </div>
                         <span className="text-lg font-bold text-cyan-300">
-                          {machine.monthly_earnings.toLocaleString()} XAF
+                          {formatNumber(monthlyEarnings)} XAF
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
@@ -538,13 +543,13 @@ const isDiscounted = (price: number) => {
                     <div className="space-y-3">
                       {/* Price Display */}
                       <div className="text-center bg-slate-900/60 rounded-2xl p-4 border border-cyan-400/10">
-{isDiscounted(machine.price) ? (
+{isDiscounted(machinePrice) ? (
   <>
     <div className="text-lg text-rose-300 line-through">
-      {machine.price.toLocaleString()} XAF
+      {formatNumber(machinePrice)} XAF
     </div>
     <div className="text-3xl font-bold text-emerald-300 mb-1">
-      {getDiscountedPrice(machine.price).toLocaleString()} XAF
+      {formatNumber(getDiscountedPrice(machinePrice))} XAF
     </div>
     <div className="text-xs text-amber-300 font-bold animate-pulse">
       🔥 5% NEW YEAR DISCOUNT
@@ -552,7 +557,7 @@ const isDiscounted = (price: number) => {
   </>
 ) : (
   <div className="text-3xl font-bold text-white mb-1">
-    {machine.price.toLocaleString()} XAF
+    {formatNumber(machinePrice)} XAF
   </div>
 )}
                         <div className="text-sm text-slate-400">One-time payment</div>
