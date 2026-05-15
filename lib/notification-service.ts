@@ -1,23 +1,8 @@
 // lib/notification-service.ts
-import { createClient } from '@supabase/supabase-js'
-
-const getSupabaseClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseKey) {
-    return null
-  }
-
-  return createClient(supabaseUrl, supabaseKey)
-}
-
-const supabase = getSupabaseClient()
+import { supabase } from "@/lib/supabase"
 
 export class NotificationService {
   static async markAsRead(notificationId: string) {
-    if (!supabase) return null
-
     const { data, error } = await supabase
       .from('notifications')
       .update({ is_read: true })
@@ -30,8 +15,6 @@ export class NotificationService {
   }
 
   static async markAllAsRead(userId: string) {
-    if (!supabase) return null
-
     const { data, error } = await supabase
       .from('notifications')
       .update({ is_read: true })
@@ -43,11 +26,6 @@ export class NotificationService {
     return data
   }
   static async createNotification(notification: any) {
-    if (!supabase) {
-      console.warn('Supabase not available - notification skipped')
-      return null
-    }
-
     try {
       const { data, error } = await supabase
         .from('notifications')
@@ -64,11 +42,6 @@ export class NotificationService {
   }
 
   static async getUserNotifications(userId: string) {
-    if (!supabase) {
-      console.warn('Supabase not available - returning empty notifications')
-      return []
-    }
-
     try {
       const { data, error } = await supabase
         .from('notifications')
@@ -86,10 +59,6 @@ export class NotificationService {
   }
 
   static async getUnreadCount(userId: string) {
-    if (!supabase) {
-      return 0
-    }
-
     try {
       const { count, error } = await supabase
         .from('notifications')
