@@ -1,7 +1,7 @@
 // components/notification-bell.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useId } from "react"
 import { Bell, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -32,6 +32,7 @@ interface Notification {
 export function NotificationBell() {
   const { user } = useAuth()
   const { language } = useLanguage()
+  const instanceId = useId().replace(/[^a-zA-Z0-9]/g, "")
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -88,7 +89,7 @@ export function NotificationBell() {
     if (!user) return
 
     const channel = supabase
-      .channel(`notifications-${user.id}`)
+      .channel(`notifications-${user.id}-${instanceId}`)
       .on(
         "postgres_changes",
         {
@@ -106,7 +107,7 @@ export function NotificationBell() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user])
+  }, [user, instanceId])
 
   const handleEnablePush = async () => {
     if (!user) return

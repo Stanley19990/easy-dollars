@@ -21,9 +21,20 @@ export default function AppError({
         <p className="mt-3 text-sm text-slate-300">
           This section could not load correctly. Please try again.
         </p>
-        <Button onClick={reset} className="mt-6 w-full cr-button text-slate-950">
-          Try again
-        </Button>
+        {error.digest && (
+          <p className="mt-3 text-xs text-slate-500">Error ID: {error.digest}</p>
+        )}
+        <div className="mt-6 grid gap-3">
+          <Button onClick={reset} className="w-full cr-button text-slate-950">
+            Try again
+          </Button>
+          <a
+            href="/dashboard"
+            className="rounded-xl border border-cyan-400/40 px-4 py-3 text-sm font-semibold text-cyan-100"
+          >
+            Go to dashboard
+          </a>
+        </div>
       </section>
     </main>
   )

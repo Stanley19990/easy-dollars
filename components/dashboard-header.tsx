@@ -29,7 +29,7 @@ export function DashboardHeader() {
   const [machinePurchaseDays, setMachinePurchaseDays] = useState<number>(0)
   const [hasPurchasedMachine, setHasPurchasedMachine] = useState(false)
   const [showVerificationPrompt, setShowVerificationPrompt] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile, setIsMobile] = useState<boolean | null>(null)
 
   // Load verification status and machine purchase eligibility
   useEffect(() => {
@@ -286,7 +286,7 @@ export function DashboardHeader() {
             </div>
 
             {/* Desktop Navigation */}
-            {!isMobile && (
+            {isMobile === false && (
             <div className="hidden md:flex items-center space-x-2 lg:space-x-4">
               {/* Verification Button */}
               <Button
@@ -377,7 +377,7 @@ export function DashboardHeader() {
                   {getUserInitial()}
                 </AvatarFallback>
               </Avatar>
-              <NotificationBell />
+              {isMobile === true && <NotificationBell />}
               <Button
                 variant="ghost"
                 size="sm"

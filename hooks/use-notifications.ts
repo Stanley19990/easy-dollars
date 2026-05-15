@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from './use-auth'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -17,18 +17,25 @@ export interface Notification {
 
 export function useNotifications() {
   const { user } = useAuth()
+  const channelIdRef = useRef(Math.random().toString(36).slice(2))
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let cleanup: (() => void) | undefined
+
     if (user) {
       fetchNotifications()
-      setupRealtimeSubscription()
+      cleanup = setupRealtimeSubscription()
     } else {
       setNotifications([])
       setUnreadCount(0)
       setLoading(false)
+    }
+
+    return () => {
+      cleanup?.()
     }
   }, [user])
 
@@ -64,7 +71,7 @@ export function useNotifications() {
     if (!user) return
 
     const subscription = supabase
-      .channel('notifications')
+      .channel(`notifications-${user.id}-${channelIdRef.current}`)
       .on(
         'postgres_changes',
         {
@@ -90,7 +97,7 @@ export function useNotifications() {
       .subscribe()
 
     return () => {
-      subscription.unsubscribe()
+      supabase.removeChannel(subscription)
     }
   }
 
