@@ -11,7 +11,7 @@ import { EarningsConverter } from "@/components/earnings-converter"
 import { FloatingParticles } from "@/components/floating-particles"
 import { Toaster, toast } from "sonner"
 import { supabase } from "@/lib/supabase"
-import { firstRelation, formatDate, formatNumber } from "@/lib/safe-data"
+import { firstRelation, formatDate, formatNumber, toNumber } from "@/lib/safe-data"
 
 export default function WalletPage() {
   const { user, loading } = useAuth()
@@ -248,14 +248,14 @@ export default function WalletPage() {
           // Don't rollback if transaction record fails - balance is already updated
         }
 
-        toast.success(`✅ Withdrawal Successful! ${amountInput.toLocaleString()} XAF has been withdrawn.`)
+        toast.success(`✅ Withdrawal Successful! ${formatNumber(amountInput)} XAF has been withdrawn.`)
         
         // Clear form
         setWithdrawAmount("")
         setWithdrawMethod("")
         setAccountDetails("")
       } else {
-        toast.success(`Withdrawal request submitted for ${amountInput.toLocaleString()} XAF!`)
+        toast.success(`Withdrawal request submitted for ${formatNumber(amountInput)} XAF!`)
         setWithdrawAmount("")
       }
 
@@ -299,7 +299,7 @@ export default function WalletPage() {
           .in('type', ['mining_earnings', 'referral_bonus', 'social_bonus'])
           .eq('status', 'completed')
         
-        const totalEarned = earnings?.reduce((sum, tx) => sum + (tx.amount || 0), 0) || 0
+        const totalEarned = earnings?.reduce((sum, tx) => sum + toNumber(tx.amount), 0) || 0
         
         if (totalEarned > 0) {
           const { error: updateError } = await supabase
@@ -309,7 +309,7 @@ export default function WalletPage() {
             
           if (updateError) throw updateError
           
-          toast.success(`Balance restored to ${totalEarned.toLocaleString()} XAF!`)
+          toast.success(`Balance restored to ${formatNumber(totalEarned)} XAF!`)
           fetchWalletData()
         } else {
           toast.dismiss()
@@ -385,7 +385,7 @@ export default function WalletPage() {
                 <div className="bg-slate-900/60 rounded-2xl p-4 mb-4 border border-cyan-400/10">
                   <p className="text-slate-300 text-sm">Available Balance</p>
                   <p className="text-2xl font-bold text-emerald-300">
-                    {currentBalance.toLocaleString()} XAF
+                    {formatNumber(currentBalance)} XAF
                   </p>
                 </div>
 
@@ -404,7 +404,7 @@ export default function WalletPage() {
                     className="w-full px-4 py-3 bg-slate-900/70 border border-slate-700 rounded-2xl text-white focus:outline-none focus:border-cyan-500"
                   />
                   <div className="text-xs text-slate-400 mt-1">
-                    Minimum: 3,000 XAF • Maximum: {currentBalance.toLocaleString()} XAF
+                    Minimum: 3,000 XAF • Maximum: {formatNumber(currentBalance)} XAF
                   </div>
                 </div>
 

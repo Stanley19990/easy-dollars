@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import PromoModal from "@/components/PromoModal"
 import WeeklyReferralModal from "@/components/WeeklyReferralModal"
-import { firstRelation, formatNumber, toNumber } from "@/lib/safe-data"
+import { firstRelation, formatDate, formatNumber, toNumber } from "@/lib/safe-data"
 
 // Define types
 interface ReferredUser {
@@ -309,10 +309,10 @@ export default function DashboardPage() {
                         <div key={earning.id} className="flex items-center justify-between p-3 bg-slate-900/60 rounded-xl border border-cyan-400/10">
                           <div>
                             <p className="text-white font-medium">{earning.machine?.name || 'Machine'}</p>
-                            <p className="text-slate-400 text-sm">{new Date(earning.earned_at).toLocaleDateString()}</p>
+                            <p className="text-slate-400 text-sm">{formatDate(earning.earned_at)}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-green-400 font-bold">+{earning.amount} XAF</p>
+                            <p className="text-green-400 font-bold">+{formatNumber(earning.amount)} XAF</p>
                             <p className="text-slate-400 text-sm">Daily earnings</p>
                           </div>
                         </div>
@@ -369,7 +369,7 @@ export default function DashboardPage() {
                       <td className="px-4 py-2">{firstRelation<ReferredUser>(ref.referred_user)?.username ?? "N/A"}</td>
                       <td className="px-4 py-2">{firstRelation<ReferredUser>(ref.referred_user)?.email ?? "N/A"}</td>
                       <td className="px-4 py-2 font-bold">{formatNumber(ref.bonus)}</td>
-                      <td className="px-4 py-2">{new Date(ref.referral_date).toLocaleDateString()}</td>
+                      <td className="px-4 py-2">{formatDate(ref.referral_date)}</td>
                     </tr>
                   ))}
                 </tbody>

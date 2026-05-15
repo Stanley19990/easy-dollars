@@ -7,6 +7,7 @@ import { Wallet, DollarSign, Coins, TrendingUp, Info, RefreshCw } from "lucide-r
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
+import { firstRelation, formatNumber, toNumber } from "@/lib/safe-data"
 
 interface WalletStats {
   total_machines: number
@@ -57,9 +58,9 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
         (payload) => {
           console.log('💰 Real-time balance update:', payload)
           const newData = payload.new as DatabaseUser
-          setWalletBalance(newData.wallet_balance || 0)
-          setTotalEarned(newData.total_earned || 0)
-          setEdBalance(newData.ed_balance || 0)
+          setWalletBalance(toNumber(newData.wallet_balance))
+          setTotalEarned(toNumber(newData.total_earned))
+          setEdBalance(toNumber(newData.ed_balance))
           toast.success('Balance updated!')
         }
       )
@@ -83,9 +84,9 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
         .single()
 
       if (!userError && userData) {
-        setWalletBalance(userData.wallet_balance || 0)
-        setTotalEarned(userData.total_earned || 0)
-        setEdBalance(userData.ed_balance || 0)
+        setWalletBalance(toNumber(userData.wallet_balance))
+        setTotalEarned(toNumber(userData.total_earned))
+        setEdBalance(toNumber(userData.ed_balance))
       }
 
       // Fetch total machines count
@@ -113,10 +114,8 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
 
       let totalDailyEarnings = 0
       userMachines?.forEach(machine => {
-        const machineData = Array.isArray(machine.machine_types)
-          ? machine.machine_types[0]
-          : machine.machine_types
-        totalDailyEarnings += machineData?.daily_earnings || 0
+        const machineData = firstRelation<any>(machine.machine_types)
+        totalDailyEarnings += toNumber(machineData?.daily_earnings)
       })
 
       // Fetch total withdrawals
@@ -126,7 +125,7 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
         .eq('user_id', user.id)
         .eq('status', 'completed')
 
-      const totalWithdrawals = withdrawals?.reduce((sum, w) => sum + (w.amount || 0), 0) || 0
+      const totalWithdrawals = withdrawals?.reduce((sum, w) => sum + toNumber(w.amount), 0) || 0
 
       setStats({
         total_machines: totalMachines || 0,
@@ -187,7 +186,7 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
               </div>
             </div>
             <div className="text-3xl font-bold text-emerald-300 mb-2">
-              {walletBalance.toLocaleString()} XAF
+              {formatNumber(walletBalance)} XAF
             </div>
             <p className="text-xs text-emerald-100/70">
               Available for withdrawals • Min: 3,000 XAF
@@ -206,7 +205,7 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
               {edBalance.toFixed(2)} CR
             </div>
             <p className="text-xs text-cyan-200/70">
-              ≈ {edToXAF.toLocaleString()} XAF • Earned from machines & ads
+              ≈ {formatNumber(edToXAF)} XAF • Earned from machines & ads
             </p>
           </div>
         </div>
@@ -220,7 +219,7 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
               <span className="text-sm font-medium text-amber-200">Total Earned</span>
             </div>
             <div className="text-xl font-bold text-amber-300">
-              {totalEarned.toLocaleString()} XAF
+              {formatNumber(totalEarned)} XAF
             </div>
             <p className="text-xs text-amber-100/70 mt-1">Lifetime earnings</p>
           </div>
@@ -229,7 +228,7 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
           <div className="bg-gradient-to-br from-indigo-500/10 to-fuchsia-500/10 border border-indigo-500/20 rounded-2xl p-4">
             <div className="text-sm font-medium text-indigo-200 mb-2">Net Earnings</div>
             <div className="text-xl font-bold text-indigo-300">
-              {netEarningsXAF.toLocaleString()} XAF
+              {formatNumber(netEarningsXAF)} XAF
             </div>
             <p className="text-xs text-indigo-100/70 mt-1">After withdrawals</p>
           </div>
@@ -238,7 +237,7 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
           <div className="bg-gradient-to-br from-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-2xl p-4">
             <div className="text-sm font-medium text-cyan-200 mb-2">Daily Potential</div>
             <div className="text-xl font-bold text-cyan-300">
-              {stats.total_daily_earnings.toLocaleString()} XAF
+              {formatNumber(stats.total_daily_earnings)} XAF
             </div>
             <p className="text-xs text-cyan-100/70 mt-1">
               From {stats.total_machines} machines

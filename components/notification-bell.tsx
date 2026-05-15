@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { enablePushNotifications, supportsPushNotifications } from "@/lib/push-client"
 import { useLanguage } from "@/components/language-provider"
 import { supabase } from "@/lib/supabase"
+import { formatDate } from "@/lib/safe-data"
 
 interface Notification {
   id: string
@@ -192,7 +193,7 @@ export function NotificationBell() {
                       {notification.message}
                     </p>
                     <p className="text-slate-500 text-xs mt-2">
-                      {new Date(notification.created_at).toLocaleDateString()}
+                      {formatDate(notification.created_at)}
                     </p>
                   </div>
                   {!notification.is_read && (

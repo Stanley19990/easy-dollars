@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { safeStorageGet, safeStorageSet } from "@/lib/safe-data"
 
 export default function WeeklyReferralModal() {
   const [open, setOpen] = useState(false)
@@ -9,12 +10,12 @@ export default function WeeklyReferralModal() {
 
   useEffect(() => {
     // Check if user has seen this modal in this session
-    const seen = sessionStorage.getItem("weeklyReferralSeen")
+    const seen = safeStorageGet(window.sessionStorage, "weeklyReferralSeen")
     if (!seen) {
       // Show after 2 seconds
       const timer = setTimeout(() => {
         setOpen(true)
-        sessionStorage.setItem("weeklyReferralSeen", "true")
+        safeStorageSet(window.sessionStorage, "weeklyReferralSeen", "true")
       }, 2000)
       return () => clearTimeout(timer)
     }

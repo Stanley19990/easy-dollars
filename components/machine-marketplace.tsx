@@ -10,7 +10,7 @@ import { ShoppingCart, Zap, TrendingUp, Star, Clock, DollarSign, Cpu, BarChart3,
 import { toast } from "sonner"
 import { PaymentModal } from "@/components/payment-modal"
 import { supabase } from "@/lib/supabase"
-import { asArray, formatNumber, toNumber } from "@/lib/safe-data"
+import { asArray, formatNumber, safeStorageGet, safeStorageSet, toNumber } from "@/lib/safe-data"
 
 interface MachineType {
   id: string
@@ -95,7 +95,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     if (user) {
       fetchUserMachines()
       try {
-        const stored = pendingStorageKey ? localStorage.getItem(pendingStorageKey) : null
+        const stored = pendingStorageKey ? safeStorageGet(window.localStorage, pendingStorageKey) : null
         if (stored) {
           const parsed = JSON.parse(stored)
           if (parsed?.transId) {
@@ -335,7 +335,8 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     setSelectedMachine(null)
 
     if (pendingStorageKey) {
-      localStorage.setItem(
+      safeStorageSet(
+        window.localStorage,
         pendingStorageKey,
         JSON.stringify({ transId, externalId, mode: "direct-pay", createdAt: Date.now() })
       )

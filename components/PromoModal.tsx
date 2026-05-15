@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { safeStorageGet, safeStorageSet } from "@/lib/safe-data"
 
 interface PromoModalProps {
   title: string
@@ -23,16 +24,16 @@ export default function PromoModal({
 
   useEffect(() => {
     const seenKey = `popup_${type}_seen`
-    const alreadySeen = sessionStorage.getItem(seenKey)
+    const alreadySeen = safeStorageGet(window.sessionStorage, seenKey)
     
     if (type === "announcement") {
       const announcementKey = "popup_announcement_2024"
-      const hasSeenAnnouncement = sessionStorage.getItem(announcementKey)
+      const hasSeenAnnouncement = safeStorageGet(window.sessionStorage, announcementKey)
       
       if (!hasSeenAnnouncement) {
         const timer = setTimeout(() => {
           setOpen(true)
-          sessionStorage.setItem(announcementKey, "true")
+          safeStorageSet(window.sessionStorage, announcementKey, "true")
         }, 1000)
         return () => clearTimeout(timer)
       }
@@ -42,7 +43,7 @@ export default function PromoModal({
     if (!alreadySeen) {
       const timer = setTimeout(() => {
         setOpen(true)
-        sessionStorage.setItem(seenKey, "true")
+        safeStorageSet(window.sessionStorage, seenKey, "true")
       }, 500)
       
       return () => clearTimeout(timer)

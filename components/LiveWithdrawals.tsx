@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { formatNumber } from "@/lib/safe-data"
 
 interface Withdrawal {
   id: string
@@ -75,7 +76,7 @@ export default function LiveWithdrawals() {
             {current.user?.username || "A user"} just withdrew
           </span>
           <span className="text-lg font-black">
-            {current.amount.toLocaleString()} XAF
+            {formatNumber(current.amount)} XAF
           </span>
         </div>
       </div>

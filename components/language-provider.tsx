@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react"
 import type { Language, LanguagePreference } from "@/lib/i18n"
 import { translations } from "@/lib/i18n"
+import { safeStorageGet, safeStorageSet } from "@/lib/safe-data"
 
 type I18nContextValue = {
   language: Language
@@ -32,7 +33,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("cashrise_lang") : null
+    const stored = typeof window !== "undefined" ? safeStorageGet(window.localStorage, "cashrise_lang") : null
     if (stored === "en" || stored === "fr" || stored === "system") {
       setPreference(stored)
       applyLanguage(stored === "system" ? detectLanguage() : stored)
@@ -55,7 +56,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setPreference(lang)
     applyLanguage(lang === "system" ? detectLanguage() : lang)
     if (typeof window !== "undefined") {
-      localStorage.setItem("cashrise_lang", lang)
+      safeStorageSet(window.localStorage, "cashrise_lang", lang)
     }
   }
 

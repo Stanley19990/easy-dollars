@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { CreditCard, Smartphone, Banknote, ArrowRight, Shield, Clock } from "lucide-react"
 import { toast } from "sonner"
+import { safeStorageSet } from "@/lib/safe-data"
 
 interface DepositModalProps {
   open: boolean
@@ -79,7 +80,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
       const updatedUser = { ...user }
       updatedUser.wallet_balance = (updatedUser.wallet_balance ?? 0) + amount
 
-      localStorage.setItem("easy_dollars_user", JSON.stringify(updatedUser))
+      safeStorageSet(window.localStorage, "easy_dollars_user", JSON.stringify(updatedUser))
       refreshUser()
 
       toast.success(`Deposit of $${amount.toFixed(2)} completed successfully!`)

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Wallet, DollarSign, Coins, TrendingUp, RefreshCw, Cpu } from "lucide-react"
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
+import { firstRelation, formatNumber, toNumber } from "@/lib/safe-data"
 
 // Extended user type to include database fields
 interface DatabaseUser {
@@ -49,8 +50,8 @@ export function WalletOverview() {
   useEffect(() => {
     if (user) {
       // FIXED: Initialize balances from user object
-      setWalletBalance(user.wallet_balance || 0)
-      setTotalEarned(user.total_earned || 0)
+      setWalletBalance(toNumber(user.wallet_balance))
+      setTotalEarned(toNumber(user.total_earned))
       fetchStats()
       
       // FIXED: Set up real-time subscription for balance updates
@@ -67,8 +68,8 @@ export function WalletOverview() {
           (payload) => {
             console.log('💰 Wallet balance updated:', payload)
             const newData = payload.new as DatabaseUser
-            setWalletBalance(newData.wallet_balance || 0)
-            setTotalEarned(newData.total_earned || 0)
+            setWalletBalance(toNumber(newData.wallet_balance))
+            setTotalEarned(toNumber(newData.total_earned))
           }
         )
         .subscribe()
@@ -114,10 +115,8 @@ export function WalletOverview() {
 
       let totalDailyEarnings = 0
       userMachines?.forEach(machine => {
-        const machineData = Array.isArray(machine.machine_types) 
-          ? machine.machine_types[0] 
-          : machine.machine_types
-        totalDailyEarnings += machineData?.daily_earnings || 0
+        const machineData = firstRelation<any>(machine.machine_types)
+        totalDailyEarnings += toNumber(machineData?.daily_earnings)
       })
 
       setStats({
@@ -146,8 +145,8 @@ export function WalletOverview() {
         .single()
       
       if (!error && data) {
-        setWalletBalance(data.wallet_balance || 0)
-        setTotalEarned(data.total_earned || 0)
+        setWalletBalance(toNumber(data.wallet_balance))
+        setTotalEarned(toNumber(data.total_earned))
       }
     } catch (error) {
       console.error('Error refreshing balance:', error)
@@ -174,7 +173,7 @@ export function WalletOverview() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-emerald-300">
-            {walletBalance.toLocaleString()} XAF
+            {formatNumber(walletBalance)} XAF
           </div>
           <p className="text-xs text-slate-500 mt-1">Available for withdrawal</p>
         </CardContent>
@@ -187,7 +186,7 @@ export function WalletOverview() {
           <Coins className="h-4 w-4 text-cyan-300" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-cyan-300">{(user.ed_balance || 0).toFixed(2)} CR</div>
+          <div className="text-2xl font-bold text-cyan-300">{toNumber(user.ed_balance).toFixed(2)} CR</div>
           <p className="text-xs text-slate-500 mt-1">CashRise (CR) tokens</p>
         </CardContent>
       </Card>
@@ -200,7 +199,7 @@ export function WalletOverview() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-amber-300">
-            {stats.totalDailyEarnings.toLocaleString()} XAF
+            {formatNumber(stats.totalDailyEarnings)} XAF
           </div>
           <p className="text-xs text-slate-500 mt-1">From {stats.ownedMachines} machines</p>
         </CardContent>
@@ -214,7 +213,7 @@ export function WalletOverview() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-emerald-300">
-            {totalEarned.toLocaleString()} XAF
+            {formatNumber(totalEarned)} XAF
           </div>
           <p className="text-xs text-slate-500 mt-1">Lifetime earnings</p>
         </CardContent>

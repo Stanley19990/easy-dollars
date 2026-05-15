@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { ArrowRightLeft, Coins, DollarSign, Zap, TrendingUp } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
+import { formatNumber, toNumber } from "@/lib/safe-data"
 
 export function EarningsConverter() {
   const { user, refreshUser } = useAuth()
@@ -105,7 +106,7 @@ export function EarningsConverter() {
         .insert({
           user_id: user.id,
           type: 'conversion',
-          description: `Converted ${edToConvert} CR to ${xafAmount.toLocaleString()} XAF ($${usdAmount.toFixed(2)} USD)`,
+          description: `Converted ${edToConvert} CR to ${formatNumber(xafAmount)} XAF ($${usdAmount.toFixed(2)} USD)`,
           amount: -edToConvert, // Negative for CR deduction
           currency: 'ED',
           status: 'completed',
@@ -130,7 +131,7 @@ export function EarningsConverter() {
         .insert({
           user_id: user.id,
           type: 'conversion_credit',
-          description: `Received ${xafAmount.toLocaleString()} XAF ($${usdAmount.toFixed(2)} USD) from CR conversion`,
+          description: `Received ${formatNumber(xafAmount)} XAF ($${usdAmount.toFixed(2)} USD) from CR conversion`,
           amount: usdAmount,
           currency: 'USD',
           status: 'completed',
@@ -153,7 +154,7 @@ export function EarningsConverter() {
       // Refresh user data
       await refreshUser()
 
-      toast.success(`✅ Successfully converted ${edToConvert} CR to ${xafAmount.toLocaleString()} XAF!`)
+      toast.success(`✅ Successfully converted ${edToConvert} CR to ${formatNumber(xafAmount)} XAF!`)
       setEdAmount("")
 
     } catch (error) {
@@ -201,7 +202,7 @@ export function EarningsConverter() {
                 <span className="text-sm text-slate-400">CR Balance</span>
               </div>
               <div className="text-lg font-bold text-cyan-300">
-                {(user.ed_balance || 0).toFixed(2)} CR
+                {toNumber(user.ed_balance).toFixed(2)} CR
               </div>
             </div>
             <div className="bg-slate-900/60 rounded-2xl p-3 text-center border border-cyan-400/10">
@@ -210,10 +211,10 @@ export function EarningsConverter() {
                 <span className="text-sm text-slate-400">Available Balance</span>
               </div>
               <div className="text-lg font-bold text-emerald-300">
-                {((user.wallet_balance || 0) * 600).toLocaleString()} XAF
+                {formatNumber(toNumber(user.wallet_balance) * 600)} XAF
               </div>
               <div className="text-xs text-slate-400">
-                ${(user.wallet_balance || 0).toFixed(2)} USD
+                ${toNumber(user.wallet_balance).toFixed(2)} USD
               </div>
             </div>
           </div>
@@ -280,7 +281,7 @@ export function EarningsConverter() {
                 className="bg-slate-900/70 border-slate-700 focus:border-cyan-500 text-cyan-200 text-center text-lg font-semibold"
               />
               <div className="text-xs text-slate-400 text-center">
-                Available: {(user.ed_balance ?? 0).toFixed(2)} CR
+                Available: {toNumber(user.ed_balance).toFixed(2)} CR
               </div>
             </div>
 
@@ -297,7 +298,7 @@ export function EarningsConverter() {
               </Label>
               <div className="bg-slate-900/70 border border-slate-700 rounded-2xl p-4 text-center">
                 <div className="text-2xl font-bold text-emerald-300 mb-1">
-                  {xafAmount.toLocaleString()} XAF
+                  {formatNumber(xafAmount)} XAF
                 </div>
                 <div className="text-sm text-slate-400">
                   ${usdAmount.toFixed(2)} USD

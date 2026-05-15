@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { CreditCard, Banknote, Smartphone } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
+import { formatNumber, toNumber } from "@/lib/safe-data"
 
 interface DatabaseUser {
   id: string
@@ -75,7 +76,7 @@ export function WithdrawalSection() {
     }
 
     const amountXAF = Number.parseFloat(withdrawalData.amount)
-    const userWalletBalanceXAF = user.wallet_balance || 0
+    const userWalletBalanceXAF = toNumber(user.wallet_balance)
 
     if (amountXAF <= 0) {
       toast.error("Please enter a valid amount")
@@ -88,7 +89,7 @@ export function WithdrawalSection() {
     }
 
     if (amountXAF < minWithdrawalXAF) {
-      toast.error(`Minimum withdrawal amount is ${minWithdrawalXAF.toLocaleString()} XAF`)
+      toast.error(`Minimum withdrawal amount is ${formatNumber(minWithdrawalXAF)} XAF`)
       return
     }
 
@@ -171,9 +172,9 @@ export function WithdrawalSection() {
           // Don't rollback for transaction error
         }
 
-        toast.success(`✅ Withdrawal Successful! ${amountXAF.toLocaleString()} XAF has been withdrawn.`)
+        toast.success(`✅ Withdrawal Successful! ${formatNumber(amountXAF)} XAF has been withdrawn.`)
       } else {
-        toast.success(`Withdrawal request of ${amountXAF.toLocaleString()} XAF submitted successfully!`)
+        toast.success(`Withdrawal request of ${formatNumber(amountXAF)} XAF submitted successfully!`)
       }
 
       // Clear form
@@ -240,7 +241,7 @@ export function WithdrawalSection() {
 
   if (!user) return null
 
-  const walletBalanceXAF = user.wallet_balance || 0
+  const walletBalanceXAF = toNumber(user.wallet_balance)
 
   return (
     <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-sm">
@@ -260,7 +261,7 @@ export function WithdrawalSection() {
                 <>
                   <p>• <strong>Instant Withdrawals:</strong> Your withdrawals are approved immediately</p>
                   <p>• <strong>No Waiting Period:</strong> Withdraw anytime</p>
-                  <p>• <strong>Minimum Amount:</strong> {minWithdrawalXAF.toLocaleString()} XAF</p>
+                  <p>• <strong>Minimum Amount:</strong> {formatNumber(minWithdrawalXAF)} XAF</p>
                   <p>• <strong>Processing Time:</strong> Instant</p>
                 </>
               ) : (
@@ -268,7 +269,7 @@ export function WithdrawalSection() {
                   <p>• <strong>New Users:</strong> Must wait 1 month after registration before first withdrawal</p>
                   <p>• <strong>Regular Users:</strong> Can withdraw weekly after first successful withdrawal</p>
                   <p>• <strong>Processing Time:</strong> 24-48 hours for all payment methods</p>
-                  <p>• <strong>Minimum Amount:</strong> {minWithdrawalXAF.toLocaleString()} XAF</p>
+                  <p>• <strong>Minimum Amount:</strong> {formatNumber(minWithdrawalXAF)} XAF</p>
                 </>
               )}
             </div>
@@ -278,7 +279,7 @@ export function WithdrawalSection() {
           <div className="bg-slate-800/50 rounded-lg p-4">
             <div className="text-sm text-slate-400 mb-1">Available Balance</div>
             <div className="text-2xl font-bold text-green-400">
-              {walletBalanceXAF.toLocaleString()} XAF
+              {formatNumber(walletBalanceXAF)} XAF
             </div>
             {isSpecialUser && walletBalanceXAF === 0 && (
               <button
@@ -304,7 +305,7 @@ export function WithdrawalSection() {
               className="bg-slate-800 border-slate-700 focus:border-green-500"
             />
             <div className="text-xs text-slate-400">
-              Minimum: {minWithdrawalXAF.toLocaleString()} XAF • Max: {walletBalanceXAF.toLocaleString()} XAF
+              Minimum: {formatNumber(minWithdrawalXAF)} XAF • Max: {formatNumber(walletBalanceXAF)} XAF
             </div>
           </div>
 
@@ -391,7 +392,7 @@ export function WithdrawalSection() {
           {/* Additional Info */}
           <div className="text-xs text-slate-400 space-y-1">
             <p>• All withdrawals are processed securely</p>
-            <p>• Minimum withdrawal amount is {minWithdrawalXAF.toLocaleString()} XAF</p>
+            <p>• Minimum withdrawal amount is {formatNumber(minWithdrawalXAF)} XAF</p>
             <p>• Processing fees may apply depending on payment method</p>
             {isSpecialUser && (
               <p className="text-green-400">• Your withdrawals are processed instantly</p>

@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent } from "@/components/ui/card"
 import { Coins, Users, Share2, ArrowUpRight, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { formatNumber, toNumber } from "@/lib/safe-data"
 
 export default function TransactionsPage() {
   const { user } = useAuth()
@@ -69,19 +70,19 @@ export default function TransactionsPage() {
           tx.type === 'daily_earnings' ||
           tx.type === 'bonus'
         )
-        .reduce((sum, tx) => sum + (tx.amount || 0), 0)
+        .reduce((sum, tx) => sum + toNumber(tx.amount), 0)
 
       const withdrawn = txs
         .filter(tx => tx.type === 'withdrawal')
-        .reduce((sum, tx) => sum + (tx.amount || 0), 0)
+        .reduce((sum, tx) => sum + toNumber(tx.amount), 0)
 
       const referralBonus = txs
         .filter(tx => tx.type === 'referral_bonus')
-        .reduce((sum, tx) => sum + (tx.amount || 0), 0)
+        .reduce((sum, tx) => sum + toNumber(tx.amount), 0)
 
       const socialBonus = txs
         .filter(tx => tx.type === 'social_bonus')
-        .reduce((sum, tx) => sum + (tx.amount || 0), 0)
+        .reduce((sum, tx) => sum + toNumber(tx.amount), 0)
 
       setStats({
         totalEarned: earned,
@@ -148,7 +149,7 @@ export default function TransactionsPage() {
                     <div>
                       <p className="text-slate-400 text-sm">Total Earned</p>
                       <p className="text-2xl font-bold text-white">
-                        {stats.totalEarned.toLocaleString()} XAF
+                        {formatNumber(stats.totalEarned)} XAF
                       </p>
                     </div>
                   </div>
@@ -164,7 +165,7 @@ export default function TransactionsPage() {
                     <div>
                       <p className="text-slate-400 text-sm">Total Withdrawn</p>
                       <p className="text-2xl font-bold text-white">
-                        {stats.totalWithdrawn.toLocaleString()} XAF
+                        {formatNumber(stats.totalWithdrawn)} XAF
                       </p>
                     </div>
                   </div>
@@ -180,7 +181,7 @@ export default function TransactionsPage() {
                     <div>
                       <p className="text-slate-400 text-sm">Referral Bonus</p>
                       <p className="text-2xl font-bold text-white">
-                        {stats.referralBonus.toLocaleString()} XAF
+                        {formatNumber(stats.referralBonus)} XAF
                       </p>
                     </div>
                   </div>
@@ -196,7 +197,7 @@ export default function TransactionsPage() {
                     <div>
                       <p className="text-slate-400 text-sm">Social Bonus</p>
                       <p className="text-2xl font-bold text-white">
-                        {stats.socialBonus.toLocaleString()} XAF
+                        {formatNumber(stats.socialBonus)} XAF
                       </p>
                     </div>
                   </div>

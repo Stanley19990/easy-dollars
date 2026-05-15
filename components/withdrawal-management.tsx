@@ -7,6 +7,7 @@ import { CreditCard, Check, X, RefreshCw } from "lucide-react"
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
+import { formatDate, formatNumber, toNumber } from "@/lib/safe-data"
 
 interface Withdrawal {
   id: string
@@ -182,7 +183,7 @@ export function WithdrawalManagement() {
                     {getMethodDisplay(withdrawal.method)}
                   </div>
                   <div className="text-xs text-slate-500 mt-1">
-                    Requested {new Date(withdrawal.created_at).toLocaleDateString()}
+                    Requested {formatDate(withdrawal.created_at)}
                   </div>
                   {withdrawal.account_details && (
                     <div className="text-xs text-slate-400 mt-1">
@@ -193,10 +194,10 @@ export function WithdrawalManagement() {
 
                 <div className="text-right mr-4">
                   <div className="text-lg font-bold text-green-400">
-                    {withdrawal.amount.toLocaleString()} XAF
+                    {formatNumber(withdrawal.amount)} XAF
                   </div>
                   <div className="text-sm text-slate-400">
-                    ${withdrawal.amount_usd?.toFixed(2) || (withdrawal.amount / 600).toFixed(2)} USD
+                    ${toNumber(withdrawal.amount_usd, toNumber(withdrawal.amount) / 600).toFixed(2)} USD
                   </div>
                 </div>
 

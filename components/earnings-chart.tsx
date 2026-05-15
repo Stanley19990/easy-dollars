@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
+import { formatNumber, toNumber } from "@/lib/safe-data"
 
 interface EarningsData {
   date: string
@@ -66,8 +67,8 @@ export function EarningsChart() {
             month: 'short', 
             day: 'numeric' 
           })
-          const earningsXAF = earning.amount * 600 // Convert to XAF
-          const earningsUSD = earning.amount
+          const earningsUSD = toNumber(earning.amount)
+          const earningsXAF = earningsUSD * 600 // Convert to XAF
           
           if (dailyEarnings[date]) {
             dailyEarnings[date].earnings_xaf += earningsXAF
@@ -106,10 +107,10 @@ export function EarningsChart() {
         setEarningsData(chartData)
 
         // Calculate statistics
-        const sevenDayTotal = chartData.slice(-7).reduce((sum, day) => sum + day.earnings_xaf, 0)
-        const thirtyDayTotal = chartData.reduce((sum, day) => sum + day.earnings_xaf, 0)
-        const bestDay = Math.max(...chartData.map(day => day.earnings_xaf))
-        const activeDays = chartData.filter(day => day.earnings_xaf > 0).length
+        const sevenDayTotal = chartData.slice(-7).reduce((sum, day) => sum + toNumber(day.earnings_xaf), 0)
+        const thirtyDayTotal = chartData.reduce((sum, day) => sum + toNumber(day.earnings_xaf), 0)
+        const bestDay = Math.max(0, ...chartData.map(day => toNumber(day.earnings_xaf)))
+        const activeDays = chartData.filter(day => toNumber(day.earnings_xaf) > 0).length
         const dailyAverage = activeDays > 0 ? thirtyDayTotal / activeDays : 0
 
         setChartStats({
@@ -213,7 +214,7 @@ export function EarningsChart() {
         </p>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
+        <div className="h-[300px] min-h-[300px] w-full min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={earningsData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -228,7 +229,7 @@ export function EarningsChart() {
                 stroke="#64748b" 
                 fontSize={12} 
                 tick={{ fill: '#cbd5e1' }}
-                tickFormatter={(value) => `${value.toLocaleString()} XAF`}
+                tickFormatter={(value) => `${formatNumber(value)} XAF`}
               />
               <Tooltip
                 contentStyle={{
@@ -238,7 +239,7 @@ export function EarningsChart() {
                   color: "#f1f5f9",
                 }}
                 formatter={(value: number) => [
-                  `${value.toLocaleString()} XAF`, 
+                  `${formatNumber(value)} XAF`, 
                   "Earnings"
                 ]}
                 labelFormatter={(label) => `Date: ${label}`}
@@ -259,8 +260,8 @@ export function EarningsChart() {
               <Calendar className="h-4 w-4 text-emerald-300" />
               <div className="text-lg font-bold text-emerald-300">
                 {timeRange === '7days' 
-                  ? chartStats.sevenDayTotal.toLocaleString() 
-                  : chartStats.thirtyDayTotal.toLocaleString()
+                  ? formatNumber(chartStats.sevenDayTotal) 
+                  : formatNumber(chartStats.thirtyDayTotal)
                 } XAF
               </div>
             </div>
@@ -273,7 +274,7 @@ export function EarningsChart() {
             <div className="flex items-center justify-center space-x-1 mb-1">
               <Zap className="h-4 w-4 text-cyan-300" />
               <div className="text-lg font-bold text-cyan-300">
-                {chartStats.bestDay.toLocaleString()} XAF
+                {formatNumber(chartStats.bestDay)} XAF
               </div>
             </div>
             <div className="text-xs text-slate-400">Best Day</div>
@@ -281,7 +282,7 @@ export function EarningsChart() {
           
           <div className="text-center bg-slate-900/60 rounded-2xl p-3 border border-cyan-400/10">
             <div className="text-lg font-bold text-amber-300 mb-1">
-              {Math.round(chartStats.dailyAverage).toLocaleString()} XAF
+              {formatNumber(Math.round(chartStats.dailyAverage))} XAF
             </div>
             <div className="text-xs text-slate-400">Daily Average</div>
           </div>

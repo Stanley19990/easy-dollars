@@ -4,6 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { History, ArrowUpRight, ArrowDownLeft, Coins, CreditCard, Plus, Users, Zap, Gift, Share2 } from "lucide-react"
+import { formatDate, formatDateTime, formatNumber, toNumber } from "@/lib/safe-data"
 
 interface TransactionHistoryProps {
   transactions: {
@@ -101,32 +102,19 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
     return transaction.description
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
-
   const formatCurrency = (currency: string) => {
     if (currency === "ED") return "CR"
-    return currency
+    return currency || "XAF"
   }
 
   // Sort transactions by date (newest first)
   const sortedTransactions = [...transactions].sort((a, b) => 
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    toNumber(new Date(b.created_at).getTime()) - toNumber(new Date(a.created_at).getTime())
   )
 
   // Group transactions by date
   const groupedTransactions = sortedTransactions.reduce((groups: any, transaction) => {
-    const date = new Date(transaction.created_at).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+    const date = formatDate(transaction.created_at)
     
     if (!groups[date]) {
       groups[date] = []
@@ -172,7 +160,7 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
                           {formatDescription(transaction)}
                         </div>
                         <div className="text-sm text-slate-300 flex items-center space-x-2 mt-1">
-                          <span>{formatDate(transaction.created_at)}</span>
+                          <span>{formatDateTime(transaction.created_at)}</span>
                           {transaction.metadata && (
                             <>
                               <span className="text-slate-500">•</span>
@@ -192,7 +180,7 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
                       <div className="flex items-center space-x-2 justify-end">
                         <span className={`font-semibold ${getAmountColor(transaction.type)}`}>
                           {getAmountPrefix(transaction.type)}
-                          {transaction.amount.toLocaleString()} {formatCurrency(transaction.currency)}
+                          {formatNumber(transaction.amount)} {formatCurrency(transaction.currency)}
                         </span>
                       </div>
                       <Badge 
